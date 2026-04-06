@@ -17,7 +17,7 @@ export interface UserResponse {
   name: string;
   email: string;
   role: UserRole;
-  is_verified?: boolean;
+  verified: boolean;
 }
 
 export interface ClassroomResponse {

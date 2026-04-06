@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/Users";
 import PendingUsers from "./pages/admin/PendingUsers";
 import Classrooms from "./pages/admin/Classrooms";
 import AdminSessions from "./pages/admin/AdminSessions";
@@ -36,6 +37,7 @@ const App = () => (
             {/* Admin routes */}
             <Route element={<ProtectedRoute roles={["admin"]}><DashboardLayout /></ProtectedRoute>}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/pending" element={<PendingUsers />} />
               <Route path="/admin/classrooms" element={<Classrooms />} />
               <Route path="/admin/sessions" element={<AdminSessions />} />

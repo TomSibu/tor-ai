@@ -51,3 +51,6 @@ pytest_cache/
 *.sqlite
 *.sqlite3
 uploads/
+
+#DB
+ai_tutor.db

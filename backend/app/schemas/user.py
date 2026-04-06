@@ -13,9 +13,17 @@ class UserResponse(BaseModel):
     name: str
     email: str
     role: str
+    verified: bool
 
     class Config:
         from_attributes = True
+
+
+class UserUpdate(BaseModel):
+    name: str | None = None
+    email: EmailStr | None = None
+    password: str | None = None
+    verified: bool | None = None
 
 class UserLogin(BaseModel):
     email: EmailStr
