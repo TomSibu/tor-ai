@@ -4,4 +4,5 @@ from .student import Student
 from .content import Content
 from .session import Session
 from .session_state import SessionState
+from .attendance import Attendance
 from .teacher_classroom import TeacherClassroom

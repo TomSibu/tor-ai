@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.classroom import Classroom
 from app.models.user import User
+from app.models.student import Student
 from app.schemas.classroom import ClassroomResponse
 from app.utils.dependencies import require_role
 from app.models.teacher_classroom import TeacherClassroom
@@ -19,9 +20,9 @@ def assign_teacher(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin"))
 ):
-    teacher = db.query(User).filter(User.id == teacher_id, User.role == "teacher").first()
+    teacher = db.query(User).filter(User.id == teacher_id, User.role.in_(["teacher", "admin"])).first()
     if not teacher:
-        raise HTTPException(status_code=404, detail="Teacher not found")
+        raise HTTPException(status_code=404, detail="Teacher/Admin user not found")
 
     classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
     if not classroom:
@@ -69,13 +70,98 @@ def get_classrooms(
         for classroom in classrooms
     ]
 
+@router.get("/users-with-classrooms")
+def get_classroom_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    """Get classrooms with linked classroom-user metadata for admin management."""
+    classrooms = db.query(Classroom).order_by(Classroom.name.asc()).all()
+
+    result = []
+    for classroom in classrooms:
+        user = None
+        if classroom.user_id is not None:
+            user = db.query(User).filter(User.id == classroom.user_id).first()
+
+        # Backward-compat fallback: match a classroom role user by name.
+        if not user:
+            user = db.query(User).filter(
+                User.role == "classroom",
+                User.name == classroom.name,
+            ).first()
+
+        student_count = db.query(Student).filter(Student.classroom_id == classroom.id).count()
+        teacher_count = db.query(TeacherClassroom).filter(TeacherClassroom.classroom_id == classroom.id).count()
+
+        result.append({
+            "user_id": user.id if user else None,
+            "user_name": user.name if user else "Unlinked classroom user",
+            "user_email": user.email if user else "—",
+            "classroom_id": classroom.id,
+            "classroom_name": classroom.name,
+            "student_count": student_count,
+            "teacher_count": teacher_count,
+        })
+
+    return result
+
+@router.get("/details/{classroom_id}")
+def get_classroom_details(
+    classroom_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    """Get classroom details including students and teacher assignments"""
+    classroom = db.query(Classroom).filter(Classroom.id == classroom_id).first()
+    if not classroom:
+        raise HTTPException(status_code=404, detail="Classroom not found")
+    
+    students = db.query(Student).filter(Student.classroom_id == classroom_id).all()
+    assignments = db.query(TeacherClassroom).filter(TeacherClassroom.classroom_id == classroom_id).all()
+    
+    teacher_details = []
+    for assignment in assignments:
+        teacher = db.query(User).filter(User.id == assignment.teacher_id).first()
+        if teacher:
+            teacher_details.append({
+                "id": assignment.id,
+                "teacher_id": teacher.id,
+                "teacher_name": teacher.name,
+                "subject": assignment.subject
+            })
+    
+    return {
+        "classroom": classroom,
+        "students": students,
+        "teachers": teacher_details
+    }
+
 from app.models.teacher_classroom import TeacherClassroom
+
+@router.delete("/assignments/{assignment_id}")
+def remove_teacher_assignment(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    """Remove a teacher assignment from a classroom"""
+    assignment = db.query(TeacherClassroom).filter(TeacherClassroom.id == assignment_id).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    
+    db.delete(assignment)
+    db.commit()
+    
+    return {"message": "Assignment removed successfully"}
 
 @router.get("/my-dashboard")
 def classroom_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("classroom"))
 ):
+    from app.models.user import User as UserModel
+    
     # Find classroom linked to this user
     classroom = db.query(Classroom).filter(Classroom.user_id == current_user.id).first()
 
@@ -90,10 +176,52 @@ def classroom_dashboard(
     # Get sessions
     sessions = db.query(SessionModel).filter(
         SessionModel.classroom_id == classroom.id
-    ).all()
+    ).order_by(SessionModel.start_time.desc()).all()
+
+    # Get students
+    students = db.query(Student).filter(Student.classroom_id == classroom.id).all()
+
+    # Format teacher assignments with proper data
+    teachers_data = []
+    for assignment in assignments:
+        teacher_user = db.query(UserModel).filter(UserModel.id == assignment.teacher_id).first()
+        if teacher_user:
+            teachers_data.append({
+                "id": assignment.id,
+                "teacher_id": assignment.teacher_id,
+                "teacher_name": teacher_user.name,
+                "subject": assignment.subject,
+            })
+
+    # Format sessions data
+    sessions_data = []
+    for session in sessions:
+        from datetime import datetime
+        status = "upcoming"
+        if session.start_time and session.expires_at:
+            now = datetime.utcnow()
+            if now >= session.expires_at:
+                status = "expired"
+            elif now >= session.start_time:
+                status = "live"
+        
+        sessions_data.append({
+            "id": session.id,
+            "start_time": session.start_time.isoformat() if session.start_time else None,
+            "expires_at": session.expires_at.isoformat() if session.expires_at else None,
+            "duration": session.duration,
+            "status": status,
+        })
 
     return {
-        "classroom": classroom,
-        "teachers": assignments,
-        "sessions": sessions
+        "classroom": {
+            "id": classroom.id,
+            "name": classroom.name,
+            "user_id": classroom.user_id,
+        },
+        "teachers": teachers_data,
+        "sessions": sessions_data,
+        "student_count": len(students),
+        "total_teachers": len(teachers_data),
+        "total_sessions": len(sessions_data),
     }

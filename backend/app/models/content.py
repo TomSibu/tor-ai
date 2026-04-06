@@ -6,5 +6,6 @@ class Content(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     teacher_id = Column(Integer, ForeignKey("users.id"))
+    classroom_id = Column(Integer, ForeignKey("classrooms.id"), nullable=True)
     file_path = Column(String)
     extracted_text = Column(Text)

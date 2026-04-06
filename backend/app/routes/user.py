@@ -203,8 +203,11 @@ def update_user(
 @router.get("/my-classes")
 def get_teacher_classes(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("teacher"))
+    current_user: User = Depends(get_current_user)
 ):
+    if current_user.role not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     assignments = db.query(TeacherClassroom).filter(
         TeacherClassroom.teacher_id == current_user.id
     ).all()

@@ -1,9 +1,8 @@
 import {
-  LayoutDashboard, Users, School, BookOpen, GraduationCap,
-  BarChart3, LogOut, Bot, Monitor
+  LayoutDashboard, Users, BookOpen, GraduationCap,
+  BarChart3, LogOut, Bot, Monitor, Layers
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -16,25 +15,27 @@ const adminItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Pending Users", url: "/admin/pending", icon: Users },
-  { title: "Classrooms", url: "/admin/classrooms", icon: School },
+  { title: "Manage Classrooms", url: "/admin/classroom-management", icon: Layers },
   { title: "Sessions", url: "/admin/sessions", icon: BookOpen },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 
 const teacherItems = [
   { title: "My Classes", url: "/teacher/classes", icon: GraduationCap },
+  { title: "Manage Classrooms", url: "/teacher/classroom-management", icon: Layers },
   { title: "Sessions", url: "/teacher/sessions", icon: BookOpen },
 ];
 
 const classroomItems = [
   { title: "Dashboard", url: "/classroom/dashboard", icon: Monitor },
+  { title: "Sessions", url: "/classroom/sessions", icon: BookOpen },
+  { title: "Attendance", url: "/classroom/attendance", icon: BarChart3 },
 ];
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
 
   const items = user?.role === "admin" ? adminItems
     : user?.role === "teacher" ? teacherItems

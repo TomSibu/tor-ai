@@ -9,3 +9,4 @@ class Session(Base):
     content_id = Column(Integer, ForeignKey("contents.id"))
     start_time = Column(DateTime)
     duration = Column(Integer)  # in minutes
+    expires_at = Column(DateTime)

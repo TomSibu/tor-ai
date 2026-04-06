@@ -28,6 +28,8 @@ export interface ClassroomResponse {
 
 export interface ContentResponse {
   id: number;
+  teacher_id: number;
+  classroom_id?: number | null;
   file_path: string;
 }
 
@@ -40,12 +42,19 @@ export interface AssignedClassResponse {
 
 export interface StudentCreate {
   name: string;
+  roll_number?: string;
+  email?: string;
+  phone?: string;
   classroom_id: number;
 }
 
 export interface StudentResponse {
   id: number;
   name: string;
+  roll_number?: string;
+  email?: string;
+  phone?: string;
+  photo_path?: string;
   classroom_id: number;
 }
 
@@ -54,6 +63,7 @@ export interface SessionCreate {
   content_id: number;
   start_time: string;
   duration: number;
+  expires_at: string;
 }
 
 export interface SessionResponse {
@@ -62,6 +72,18 @@ export interface SessionResponse {
   content_id: number;
   start_time: string;
   duration: number;
+  expires_at: string;
+}
+
+export interface SessionManageResponse extends SessionResponse {
+  classroom_name?: string | null;
+  content_file_path?: string | null;
+  teacher_id?: number | null;
+  teacher_name?: string | null;
+  subject?: string | null;
+  session_name?: string | null;
+  expires_at: string;
+  status: "live" | "upcoming" | "expired";
 }
 
 export interface LoginResponse {
@@ -73,4 +95,55 @@ export interface LoginResponse {
 export interface AttendanceRecord {
   student_id: number;
   present: boolean;
+}
+
+export interface SessionWiseStudent {
+  id: number;
+  name: string;
+  confidence?: number | null;
+}
+
+export interface SessionWiseItem {
+  session_id: number;
+  session_name?: string | null;
+  subject?: string | null;
+  teacher_name?: string | null;
+  start_time: string | null;
+  total_students: number;
+  present_count: number;
+  absent_count: number;
+  present_students: SessionWiseStudent[];
+  absent_students: SessionWiseStudent[];
+}
+
+export interface ClassroomAttendanceSessionWise {
+  classroom_id: number;
+  classroom_name: string;
+  total_students: number;
+  sessions: SessionWiseItem[];
+}
+
+export interface StudentSessionRecord {
+  session_id: number;
+  session_name?: string | null;
+  subject?: string | null;
+  start_time: string | null;
+  status: "present" | "absent";
+  confidence?: number | null;
+}
+
+export interface StudentWiseItem {
+  student_id: number;
+  student_name: string;
+  present_sessions: number;
+  absent_sessions: number;
+  attendance_percentage: number;
+  records: StudentSessionRecord[];
+}
+
+export interface ClassroomAttendanceStudentWise {
+  classroom_id: number;
+  classroom_name: string;
+  total_sessions: number;
+  students: StudentWiseItem[];
 }

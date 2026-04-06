@@ -12,12 +12,19 @@ import Register from "./pages/Register";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/Users";
 import PendingUsers from "./pages/admin/PendingUsers";
-import Classrooms from "./pages/admin/Classrooms";
-import AdminSessions from "./pages/admin/AdminSessions";
+import ClassroomManagement from "./pages/admin/ClassroomManagement";
+import ClassroomDetail from "./pages/admin/ClassroomDetail";
+import AdminSessions from "@/pages/admin/AdminSessions";
+import AdminClassroomSessions from "./pages/admin/AdminClassroomSessions";
 import Analytics from "./pages/admin/Analytics";
 import TeacherClasses from "./pages/teacher/TeacherClasses";
-import TeacherSessions from "./pages/teacher/TeacherSessions";
+import TeacherClassroomManagement from "./pages/teacher/TeacherClassroomManagement";
+import TeacherClassroomAttendance from "./pages/teacher/TeacherClassroomAttendance";
+import TeacherSessions from "@/pages/teacher/TeacherSessions";
+import TeacherClassroomSessions from "./pages/teacher/TeacherClassroomSessions";
 import ClassroomDashboard from "./pages/classroom/ClassroomDashboard";
+import ClassroomSessions from "./pages/classroom/ClassroomSessions";
+import ClassroomAttendance from "./pages/classroom/ClassroomAttendance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,20 +46,27 @@ const App = () => (
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/pending" element={<PendingUsers />} />
-              <Route path="/admin/classrooms" element={<Classrooms />} />
+              <Route path="/admin/classroom-management" element={<ClassroomManagement />} />
+              <Route path="/admin/classroom/:classroomId" element={<ClassroomDetail />} />
               <Route path="/admin/sessions" element={<AdminSessions />} />
+              <Route path="/admin/sessions/classroom/:classroomId" element={<AdminClassroomSessions />} />
               <Route path="/admin/analytics" element={<Analytics />} />
             </Route>
 
             {/* Teacher routes */}
             <Route element={<ProtectedRoute roles={["teacher"]}><DashboardLayout /></ProtectedRoute>}>
               <Route path="/teacher/classes" element={<TeacherClasses />} />
+              <Route path="/teacher/classroom-management" element={<TeacherClassroomManagement />} />
+              <Route path="/teacher/classroom/:classroomId/attendance" element={<TeacherClassroomAttendance />} />
               <Route path="/teacher/sessions" element={<TeacherSessions />} />
+              <Route path="/teacher/sessions/classroom/:classroomId" element={<TeacherClassroomSessions />} />
             </Route>
 
             {/* Classroom routes */}
             <Route element={<ProtectedRoute roles={["classroom"]}><DashboardLayout /></ProtectedRoute>}>
               <Route path="/classroom/dashboard" element={<ClassroomDashboard />} />
+              <Route path="/classroom/sessions" element={<ClassroomSessions />} />
+              <Route path="/classroom/attendance" element={<ClassroomAttendance />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

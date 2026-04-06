@@ -1,105 +1,64 @@
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import type { AssignedClassResponse } from "@/types/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { ClassroomResponse, ContentResponse } from "@/types/api";
-import { BookOpen, Upload } from "lucide-react";
-import { toast } from "sonner";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { CalendarDays } from "lucide-react";
 
 export default function AdminSessions() {
-  const qc = useQueryClient();
-  const [file, setFile] = useState<File | null>(null);
-  const [contentId, setContentId] = useState("");
-  const [classroomId, setClassroomId] = useState("");
-  const [duration, setDuration] = useState("60");
+  const navigate = useNavigate();
 
-  const { data: classrooms = [] } = useQuery<ClassroomResponse[]>({
-    queryKey: ["classrooms"],
-    queryFn: () => api.get("/classrooms/").then(r => r.data),
-  });
-
-  const { data: contents = [] } = useQuery<ContentResponse[]>({
-    queryKey: ["contents"],
-    queryFn: () => api.get("/content/").then(r => r.data),
-  });
-
-  const upload = useMutation({
-    mutationFn: async () => {
-      if (!file) return;
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await api.post("/content/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
-      return res.data;
-    },
-    onSuccess: (data) => {
-      toast.success("Content uploaded successfully");
-      qc.invalidateQueries({ queryKey: ["contents"] });
-    },
-  });
-
-  const createSession = useMutation({
-    mutationFn: () => api.post("/sessions/", {
-      classroom_id: Number(classroomId),
-      content_id: Number(contentId),
-      start_time: new Date().toISOString(),
-      duration: Number(duration),
-    }),
-    onSuccess: (res) => {
-      toast.success("Session created successfully");
-    },
+  const { data: myClasses = [], isLoading } = useQuery<AssignedClassResponse[]>({
+    queryKey: ["my-classes", "admin-sessions"],
+    queryFn: () => api.get("/users/my-classes").then((r) => r.data),
   });
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Sessions</h1>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="glass-card">
-          <CardHeader><CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5 text-primary" /> Upload Content (PDF)</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <Input type="file" accept=".pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            <Button onClick={() => upload.mutate()} disabled={!file || upload.isPending}>
-              <Upload className="mr-2 h-4 w-4" /> Upload
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-accent" /> Create Session</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Classroom</Label>
-              <Select value={classroomId} onValueChange={setClassroomId}>
-                <SelectTrigger><SelectValue placeholder="Choose a classroom" /></SelectTrigger>
-                <SelectContent>
-                  {classrooms.map((classroom) => (
-                    <SelectItem key={classroom.id} value={String(classroom.id)}>{classroom.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Content</Label>
-              <Select value={contentId} onValueChange={setContentId}>
-                <SelectTrigger><SelectValue placeholder="Choose uploaded content" /></SelectTrigger>
-                <SelectContent>
-                  {contents.map((content) => {
-                    const fileName = content.file_path.split(/[\\/]/).pop() ?? content.file_path;
-                    return <SelectItem key={content.id} value={String(content.id)}>{fileName}</SelectItem>;
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2"><Label>Duration (min)</Label><Input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} /></div>
-            <Button onClick={() => createSession.mutate()} disabled={!classroomId || !contentId || createSession.isPending}>
-              <BookOpen className="mr-2 h-4 w-4" /> Create Session
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <h1 className="text-3xl font-bold tracking-tight">Manage Sessions</h1>
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-primary" /> Assigned Classrooms
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p className="text-muted-foreground">Loading...</p>
+          ) : myClasses.length === 0 ? (
+            <p className="text-muted-foreground">No classrooms are assigned to you yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Classroom</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {myClasses.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="font-medium">{entry.classroom_name}</TableCell>
+                    <TableCell>{entry.subject || "-"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/admin/sessions/classroom/${entry.classroom_id}`)}
+                      >
+                        Manage
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
