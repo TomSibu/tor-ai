@@ -8,6 +8,7 @@ from app.models.content import Content
 from app.models.user import User
 from app.utils.dependencies import require_role
 from app.services.pdf_service import extract_text_from_pdf
+from app.schemas.content import ContentResponse
 
 router = APIRouter()
 
@@ -38,3 +39,19 @@ def upload_pdf(
     db.refresh(content)
 
     return {"content_id": content.id}
+
+
+@router.get("/", response_model=list[ContentResponse])
+def list_contents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    return db.query(Content).all()
+
+
+@router.get("/my-contents", response_model=list[ContentResponse])
+def list_my_contents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("teacher"))
+):
+    return db.query(Content).filter(Content.teacher_id == current_user.id).all()

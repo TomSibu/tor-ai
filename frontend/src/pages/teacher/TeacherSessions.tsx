@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
-import type { StudentResponse } from "@/types/api";
+import type { AssignedClassResponse, ContentResponse, StudentResponse } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookOpen, Upload, Play, CheckSquare, Send, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,6 +25,16 @@ export default function TeacherSessions() {
   const [aiMessages, setAiMessages] = useState<{ role: string; content: string }[]>([]);
   const [question, setQuestion] = useState("");
 
+  const { data: myClasses = [] } = useQuery<AssignedClassResponse[]>({
+    queryKey: ["my-classes"],
+    queryFn: () => api.get("/users/my-classes").then(r => r.data),
+  });
+
+  const { data: contents = [] } = useQuery<ContentResponse[]>({
+    queryKey: ["my-contents"],
+    queryFn: () => api.get("/content/my-contents").then(r => r.data),
+  });
+
   const { data: students = [] } = useQuery<StudentResponse[]>({
     queryKey: ["students", classroomId],
     queryFn: () => api.get(`/students/classroom/${classroomId}`).then(r => r.data),
@@ -37,12 +48,12 @@ export default function TeacherSessions() {
       fd.append("file", file);
       return api.post("/content/upload", fd, { headers: { "Content-Type": "multipart/form-data" } }).then(r => r.data);
     },
-    onSuccess: (data) => toast.success("Uploaded! Content ID: " + (data?.id ?? data?.content_id)),
+    onSuccess: () => toast.success("Content uploaded successfully"),
   });
 
   const createSession = useMutation({
     mutationFn: () => api.post("/sessions/", { classroom_id: Number(classroomId), content_id: Number(contentId), start_time: new Date().toISOString(), duration: Number(duration) }),
-    onSuccess: (res) => { setSessionId(res.data.id); setPhase("attendance"); toast.success("Session created"); },
+    onSuccess: (res) => { setSessionId(res.data.id); setPhase("attendance"); toast.success("Session created successfully"); },
   });
 
   const startSession = useMutation({
@@ -77,12 +88,12 @@ export default function TeacherSessions() {
   if (phase === "teaching") {
     return (
       <div className="space-y-4">
-        <h1 className="text-3xl font-bold tracking-tight">Live Session #{sessionId}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Live Session {sessionId ? `for ${myClasses.find((entry) => String(entry.classroom_id) === classroomId)?.classroom_name ?? "Selected Classroom"}` : ""}</h1>
         <div className="grid gap-4 lg:grid-cols-2 h-[calc(100vh-12rem)]">
           <Card className="glass-card flex flex-col">
             <CardHeader><CardTitle>📄 Content</CardTitle></CardHeader>
             <CardContent className="flex-1 overflow-auto text-sm text-muted-foreground">
-              <p>Content ID: {contentId}</p>
+              <p>Content: {contents.find((content) => String(content.id) === contentId)?.file_path.split(/[\\/]/).pop() ?? "Selected content"}</p>
               <p className="mt-2">PDF content is being used by the AI for teaching.</p>
             </CardContent>
           </Card>
@@ -116,14 +127,13 @@ export default function TeacherSessions() {
       <div className="space-y-6">
         <h1 className="text-3xl font-bold tracking-tight">Take Attendance</h1>
         <Card className="glass-card">
-          <CardHeader><CardTitle className="flex items-center gap-2"><CheckSquare className="h-5 w-5 text-accent" /> Students — Classroom {classroomId}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2"><CheckSquare className="h-5 w-5 text-accent" /> Students — {myClasses.find((entry) => String(entry.classroom_id) === classroomId)?.classroom_name ?? "Selected Classroom"}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {students.length === 0 ? <p className="text-muted-foreground">No students found.</p> :
               students.map((s) => (
                 <label key={s.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
                   <Checkbox checked={!!attendance[s.id]} onCheckedChange={(v) => setAttendance(prev => ({ ...prev, [s.id]: !!v }))} />
                   <span className="font-medium">{s.name}</span>
-                  <span className="text-xs text-muted-foreground ml-auto">ID: {s.id}</span>
                 </label>
               ))
             }
@@ -150,8 +160,29 @@ export default function TeacherSessions() {
         <Card className="glass-card">
           <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-accent" /> New Session</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2"><Label>Classroom ID</Label><Input type="number" value={classroomId} onChange={(e) => setClassroomId(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Content ID</Label><Input type="number" value={contentId} onChange={(e) => setContentId(e.target.value)} /></div>
+            <div className="space-y-2">
+              <Label>Classroom</Label>
+              <Select value={classroomId} onValueChange={setClassroomId}>
+                <SelectTrigger><SelectValue placeholder="Choose a classroom" /></SelectTrigger>
+                <SelectContent>
+                  {myClasses.map((entry) => (
+                    <SelectItem key={entry.classroom_id} value={String(entry.classroom_id)}>{entry.classroom_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Content</Label>
+              <Select value={contentId} onValueChange={setContentId}>
+                <SelectTrigger><SelectValue placeholder="Choose content" /></SelectTrigger>
+                <SelectContent>
+                  {contents.map((content) => {
+                    const fileName = content.file_path.split(/[\\/]/).pop() ?? content.file_path;
+                    return <SelectItem key={content.id} value={String(content.id)}>{fileName}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2"><Label>Duration (min)</Label><Input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} /></div>
             <Button onClick={() => createSession.mutate()} disabled={!classroomId || !contentId || createSession.isPending}>
               <BookOpen className="mr-2 h-4 w-4" /> Create & Take Attendance

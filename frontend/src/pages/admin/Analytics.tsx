@@ -20,13 +20,12 @@ export default function Analytics() {
         </CardHeader>
         <CardContent>
           <Table>
-            <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Classroom</TableHead><TableHead>Teacher ID</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Classroom</TableHead><TableHead>Teachers</TableHead></TableRow></TableHeader>
             <TableBody>
               {classrooms.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell>{c.id}</TableCell>
                   <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell>{c.teacher_id ?? "Unassigned"}</TableCell>
+                  <TableCell>{c.teacher_names.length > 0 ? c.teacher_names.join(", ") : "Unassigned"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

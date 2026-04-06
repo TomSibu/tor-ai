@@ -23,7 +23,19 @@ export interface UserResponse {
 export interface ClassroomResponse {
   id: number;
   name: string;
-  teacher_id: number | null;
+  teacher_names: string[];
+}
+
+export interface ContentResponse {
+  id: number;
+  file_path: string;
+}
+
+export interface AssignedClassResponse {
+  id: number;
+  classroom_id: number;
+  classroom_name: string;
+  subject: string | null;
 }
 
 export interface StudentCreate {

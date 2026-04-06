@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.models.classroom import Classroom
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 #from app.utils.security import hash_password
@@ -30,6 +31,19 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     )
 
     db.add(new_user)
+    db.flush()
+
+    if user.role == "classroom":
+        existing_classroom = db.query(Classroom).filter(Classroom.name == user.name).first()
+        if existing_classroom:
+            raise HTTPException(status_code=400, detail="Classroom name already exists")
+
+        classroom = Classroom(
+            name=user.name,
+            user_id=new_user.id
+        )
+        db.add(classroom)
+
     db.commit()
     db.refresh(new_user)
 
@@ -112,6 +126,28 @@ def get_teacher_classes(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher"))
 ):
-    return db.query(TeacherClassroom).filter(
+    assignments = db.query(TeacherClassroom).filter(
         TeacherClassroom.teacher_id == current_user.id
     ).all()
+
+    classroom_ids = [assignment.classroom_id for assignment in assignments]
+    classrooms = db.query(Classroom).filter(Classroom.id.in_(classroom_ids)).all() if classroom_ids else []
+    classroom_map = {classroom.id: classroom.name for classroom in classrooms}
+
+    return [
+        {
+            "id": assignment.id,
+            "classroom_id": assignment.classroom_id,
+            "classroom_name": classroom_map.get(assignment.classroom_id, "Unknown Classroom"),
+            "subject": assignment.subject,
+        }
+        for assignment in assignments
+    ]
+
+
+@router.get("/teachers")
+def get_teachers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    return db.query(User).filter(User.role == "teacher", User.verified == True).all()

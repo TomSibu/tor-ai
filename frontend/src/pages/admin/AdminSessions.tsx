@@ -1,18 +1,31 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { ClassroomResponse, ContentResponse } from "@/types/api";
 import { BookOpen, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminSessions() {
+  const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [contentId, setContentId] = useState("");
   const [classroomId, setClassroomId] = useState("");
   const [duration, setDuration] = useState("60");
+
+  const { data: classrooms = [] } = useQuery<ClassroomResponse[]>({
+    queryKey: ["classrooms"],
+    queryFn: () => api.get("/classrooms/").then(r => r.data),
+  });
+
+  const { data: contents = [] } = useQuery<ContentResponse[]>({
+    queryKey: ["contents"],
+    queryFn: () => api.get("/content/").then(r => r.data),
+  });
 
   const upload = useMutation({
     mutationFn: async () => {
@@ -23,7 +36,8 @@ export default function AdminSessions() {
       return res.data;
     },
     onSuccess: (data) => {
-      toast.success("Content uploaded! ID: " + (data?.id ?? data?.content_id ?? "check response"));
+      toast.success("Content uploaded successfully");
+      qc.invalidateQueries({ queryKey: ["contents"] });
     },
   });
 
@@ -35,7 +49,7 @@ export default function AdminSessions() {
       duration: Number(duration),
     }),
     onSuccess: (res) => {
-      toast.success("Session created! ID: " + res.data?.id);
+      toast.success("Session created successfully");
     },
   });
 
@@ -56,8 +70,29 @@ export default function AdminSessions() {
         <Card className="glass-card">
           <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-accent" /> Create Session</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2"><Label>Classroom ID</Label><Input type="number" value={classroomId} onChange={(e) => setClassroomId(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Content ID</Label><Input type="number" value={contentId} onChange={(e) => setContentId(e.target.value)} /></div>
+            <div className="space-y-2">
+              <Label>Classroom</Label>
+              <Select value={classroomId} onValueChange={setClassroomId}>
+                <SelectTrigger><SelectValue placeholder="Choose a classroom" /></SelectTrigger>
+                <SelectContent>
+                  {classrooms.map((classroom) => (
+                    <SelectItem key={classroom.id} value={String(classroom.id)}>{classroom.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Content</Label>
+              <Select value={contentId} onValueChange={setContentId}>
+                <SelectTrigger><SelectValue placeholder="Choose uploaded content" /></SelectTrigger>
+                <SelectContent>
+                  {contents.map((content) => {
+                    const fileName = content.file_path.split(/[\\/]/).pop() ?? content.file_path;
+                    return <SelectItem key={content.id} value={String(content.id)}>{fileName}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2"><Label>Duration (min)</Label><Input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} /></div>
             <Button onClick={() => createSession.mutate()} disabled={!classroomId || !contentId || createSession.isPending}>
               <BookOpen className="mr-2 h-4 w-4" /> Create Session

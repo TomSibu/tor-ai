@@ -5,5 +5,5 @@ class Classroom(Base):
     __tablename__ = "classrooms"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False, unique=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True)

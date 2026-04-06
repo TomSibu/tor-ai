@@ -3,9 +3,10 @@ import api from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GraduationCap } from "lucide-react";
+import type { AssignedClassResponse } from "@/types/api";
 
 export default function TeacherClasses() {
-  const { data: classes = [], isLoading } = useQuery({
+  const { data: classes = [], isLoading } = useQuery<AssignedClassResponse[]>({
     queryKey: ["my-classes"],
     queryFn: () => api.get("/users/my-classes").then(r => r.data),
   });
@@ -19,12 +20,11 @@ export default function TeacherClasses() {
           {isLoading ? <p className="text-muted-foreground">Loading…</p> :
             Array.isArray(classes) && classes.length > 0 ? (
               <Table>
-                <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Subject</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Classroom</TableHead><TableHead>Subject</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {classes.map((c: any) => (
-                    <TableRow key={c.id || c.classroom_id}>
-                      <TableCell>{c.id || c.classroom_id}</TableCell>
-                      <TableCell className="font-medium">{c.name || c.classroom_name || "—"}</TableCell>
+                  {classes.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.classroom_name}</TableCell>
                       <TableCell>{c.subject || "—"}</TableCell>
                     </TableRow>
                   ))}

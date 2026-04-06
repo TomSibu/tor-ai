@@ -7,7 +7,7 @@ class ClassroomCreate(BaseModel):
 class ClassroomResponse(BaseModel):
     id: int
     name: str
-    teacher_id: int | None
+    teacher_names: list[str]
 
     class Config:
         from_attributes = True
