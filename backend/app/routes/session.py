@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import os
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -12,6 +13,7 @@ from app.models.session_state import SessionState
 from app.models.teacher_classroom import TeacherClassroom
 from app.models.user import User
 from app.schemas.session import SessionCreate, SessionManageResponse, SessionResponse, SessionUpdate
+from app.services.ai_service import generate_teaching_content, build_teaching_prompt
 from app.utils.dependencies import get_current_user
 
 router = APIRouter()
@@ -90,6 +92,7 @@ def _build_session_manage_payload(session_obj: SessionModel, db: Session) -> Ses
         start_time=session_obj.start_time,
         duration=session_obj.duration,
         expires_at=session_obj.expires_at or (session_obj.start_time + timedelta(minutes=session_obj.duration)),
+        teaching_content=session_obj.teaching_content,
         status=_get_session_status(session_obj),
     )
 
@@ -112,6 +115,9 @@ def create_session(
     if content.classroom_id != session.classroom_id:
         raise HTTPException(status_code=400, detail="Content must belong to the same classroom")
 
+    if current_user.role == "teacher" and content.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only create sessions from your own uploaded content")
+
     minimum_expiry = session.start_time + timedelta(minutes=session.duration)
     if session.expires_at <= minimum_expiry:
         raise HTTPException(
@@ -119,12 +125,34 @@ def create_session(
             detail="Expiry time must be greater than start time + duration",
         )
 
+    # Get classroom info for teaching content generation
+    classroom = db.query(Classroom).filter(Classroom.id == session.classroom_id).first()
+    teacher = db.query(User).filter(User.id == content.teacher_id).first() if content.teacher_id else None
+    topic_name = os.path.splitext(os.path.basename(content.file_path))[0] if content.file_path else "the topic"
+    
+    # Get student count from classroom
+    student_count = getattr(classroom, 'student_count', None)
+
+    # Generate teaching content using classroom-format pedagogy
+    try:
+        prompt = build_teaching_prompt(
+            content=content.extracted_text,
+            topic=topic_name,
+            classroom_name=classroom.name if classroom else "the classroom",
+            student_count=student_count,
+        )
+        teaching_content = generate_teaching_content(prompt)
+    except Exception as e:
+        print(f"Error generating teaching content: {e}")
+        teaching_content = None  # Allow session creation even if generation fails
+
     new_session = SessionModel(
         classroom_id=session.classroom_id,
         content_id=session.content_id,
         start_time=session.start_time,
         duration=session.duration,
         expires_at=session.expires_at,
+        teaching_content=teaching_content,
     )
 
     db.add(new_session)
@@ -145,12 +173,15 @@ def list_classroom_sessions(
 
     _validate_classroom_access(classroom_id, current_user, db)
 
-    sessions = (
+    query = (
         db.query(SessionModel)
+        .join(Content, SessionModel.content_id == Content.id)
         .filter(SessionModel.classroom_id == classroom_id)
-        .order_by(SessionModel.start_time.desc())
-        .all()
     )
+    if current_user.role == "teacher":
+        query = query.filter(Content.teacher_id == current_user.id)
+
+    sessions = query.order_by(SessionModel.start_time.desc()).all()
 
     return [_build_session_manage_payload(session, db) for session in sessions]
 
@@ -222,12 +253,25 @@ def update_session(
     if content.classroom_id != session_obj.classroom_id:
         raise HTTPException(status_code=400, detail="Content must belong to the same classroom")
 
+    if current_user.role == "teacher" and content.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only update sessions using your own uploaded content")
+
     minimum_expiry = payload.start_time + timedelta(minutes=payload.duration)
     if payload.expires_at <= minimum_expiry:
         raise HTTPException(
             status_code=400,
             detail="Expiry time must be greater than start time + duration",
         )
+
+    # Regenerate teaching content if content_id changed
+    if session_obj.content_id != payload.content_id:
+        try:
+            prompt = build_teaching_prompt(content.extracted_text)
+            teaching_content = generate_teaching_content(prompt)
+            session_obj.teaching_content = teaching_content
+        except Exception as e:
+            print(f"Error generating teaching content: {e}")
+            session_obj.teaching_content = None
 
     session_obj.content_id = payload.content_id
     session_obj.start_time = payload.start_time
@@ -254,6 +298,11 @@ def delete_session(
         raise HTTPException(status_code=404, detail="Session not found")
 
     _validate_classroom_access(session_obj.classroom_id, current_user, db)
+
+    if current_user.role == "teacher":
+        linked_content = db.query(Content).filter(Content.id == session_obj.content_id).first()
+        if not linked_content or linked_content.teacher_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You can only delete your own sessions")
 
     db.query(Attendance).filter(Attendance.session_id == session_id).delete(synchronize_session=False)
     db.query(SessionState).filter(SessionState.session_id == session_id).delete(synchronize_session=False)

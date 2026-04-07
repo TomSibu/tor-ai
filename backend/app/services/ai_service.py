@@ -1,5 +1,7 @@
 import google.generativeai as genai
 from openai import OpenAI
+import requests
+from typing import Generator
 
 from app.config import GEMINI_API_KEY, MISTRAL_API_KEY
 
@@ -12,31 +14,188 @@ mistral_client = OpenAI(
     base_url="https://api.mistral.ai/v1"
 )
 
+# Ollama endpoint (local)
+OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
-def generate_with_gemini(prompt: str) -> str:
+
+def generate_with_gemini(prompt: str, system: str = None) -> str:
+    """Generate content using Google Gemini API."""
     model = genai.GenerativeModel("gemini-pro")
-    response = model.generate_content(prompt)
+    
+    if system:
+        response = model.generate_content(f"{system}\n\n{prompt}")
+    else:
+        response = model.generate_content(prompt)
+    
     return response.text
 
 
-def generate_with_mistral(prompt: str) -> str:
+def generate_with_mistral(prompt: str, system: str = None) -> str:
+    """Generate content using Mistral API."""
+    messages = []
+    
+    if system:
+        messages.append({"role": "system", "content": system})
+    
+    messages.append({"role": "user", "content": prompt})
+    
     response = mistral_client.chat.completions.create(
         model="mistral-medium",
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
+        messages=messages
     )
     return response.choices[0].message.content
 
 
+def generate_with_ollama(
+    prompt: str,
+    model: str = "mistral",
+    system: str = None,
+    num_predict: int = 256,
+    temperature: float = 0.7,
+    top_p: float = 0.9,
+) -> str:
+    """
+    Generate content using local Ollama model.
+    
+    Args:
+        prompt: User prompt
+        model: Ollama model name (default: mistral)
+        system: System prompt
+        num_predict: Max tokens to generate
+        temperature: Creativity level (0.0-1.0)
+        top_p: Nucleus sampling parameter
+    
+    Returns:
+        Generated text
+    """
+    full_prompt = prompt
+    if system:
+        full_prompt = f"{system}\n\n{prompt}"
+    
+    try:
+        response = requests.post(
+            OLLAMA_API_URL,
+            json={
+                "model": model,
+                "prompt": full_prompt,
+                "stream": False,
+                "temperature": temperature,
+                "top_p": top_p,
+                "num_predict": num_predict,
+            },
+            timeout=60,
+        )
+        response.raise_for_status()
+        return response.json().get("response", "")
+    except Exception as e:
+        print(f"Ollama generation failed: {e}")
+        raise
+
+
+def generate_with_ollama_streaming(
+    prompt: str,
+    model: str = "mistral",
+    system: str = None,
+    num_predict: int = 256,
+    temperature: float = 0.7,
+    top_p: float = 0.9,
+) -> Generator[str, None, None]:
+    """
+    Generate content using local Ollama model with streaming.
+    
+    Yields tokens as they're generated for real-time display.
+    
+    Args:
+        prompt: User prompt
+        model: Ollama model name
+        system: System prompt
+        num_predict: Max tokens to generate
+        temperature: Creativity level
+        top_p: Nucleus sampling parameter
+    
+    Yields:
+        Generated tokens one at a time
+    """
+    full_prompt = prompt
+    if system:
+        full_prompt = f"{system}\n\n{prompt}"
+    
+    try:
+        response = requests.post(
+            OLLAMA_API_URL,
+            json={
+                "model": model,
+                "prompt": full_prompt,
+                "stream": True,
+                "temperature": temperature,
+                "top_p": top_p,
+                "num_predict": num_predict,
+            },
+            stream=True,
+            timeout=300,
+        )
+        response.raise_for_status()
+        
+        for line in response.iter_lines():
+            if line:
+                try:
+                    data = __import__('json').loads(line)
+                    if "response" in data:
+                        yield data["response"]
+                except Exception as e:
+                    print(f"Error parsing streaming response: {e}")
+                    continue
+    
+    except Exception as e:
+        print(f"Ollama streaming generation failed: {e}")
+        raise
+
+
 def generate_teaching_content(prompt: str) -> str:
+    """Fallback teaching content generation."""
     try:
         return generate_with_gemini(prompt)
     except Exception as e:
         print("Gemini failed, switching to Mistral:", e)
         return generate_with_mistral(prompt)
+
+
+def build_teaching_prompt(
+    content: str,
+    topic: str = "the topic",
+    classroom_name: str = "the classroom",
+    student_count: int = None,
+) -> str:
+    """
+    Build classroom-format teaching prompt using new formatter.
     
-def build_teaching_prompt(content: str) -> str:
+    CLASSROOM PEDAGOGY:
+    - Natural, conversational delivery suitable for projector + speaker
+    - 5-8 minute lectures with pacing markers
+    - Engagement hooks for group learning
+    - No manual intervention needed
+    
+    Args:
+        content: Extracted textbook content
+        topic: Topic/chapter title
+        classroom_name: Name of classroom (for personalization)
+        student_count: Number of students (for engagement tuning)
+    
+    Returns:
+        Formatted prompt for Gemini/Ollama
+    """
+    from app.services.teaching_formatter import build_classroom_lecture_prompt
+    
+    return build_classroom_lecture_prompt(
+        topic=topic,
+        context=content[:5000],  # Limit context for model efficiency
+        classroom_name=classroom_name,
+        student_count=student_count,
+    )
+
+
+def build_legacy_teaching_prompt(content: str) -> str:
+    """Legacy prompt format (kept for backwards compatibility)."""
     return f"""
 You are an expert teacher.
 
@@ -54,8 +213,10 @@ Content:
 {content[:3000]}
 """
 
+
 def split_into_chunks(text: str, chunk_size: int = 500):
     return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+
 
 def generate_teaching_step(chunk: str) -> str:
     prompt = f"""

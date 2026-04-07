@@ -25,6 +25,7 @@ import TeacherClassroomSessions from "./pages/teacher/TeacherClassroomSessions";
 import ClassroomDashboard from "./pages/classroom/ClassroomDashboard";
 import ClassroomSessions from "./pages/classroom/ClassroomSessions";
 import ClassroomAttendance from "./pages/classroom/ClassroomAttendance";
+import ClassroomTeachingDashboard from "./pages/classroom/ClassroomTeachingDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,7 @@ const App = () => (
               <Route path="/classroom/dashboard" element={<ClassroomDashboard />} />
               <Route path="/classroom/sessions" element={<ClassroomSessions />} />
               <Route path="/classroom/attendance" element={<ClassroomAttendance />} />
+                          <Route path="/classroom/teaching/:sessionId" element={<ClassroomTeachingDashboard />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

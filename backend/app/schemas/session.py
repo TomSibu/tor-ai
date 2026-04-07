@@ -16,6 +16,7 @@ class SessionResponse(BaseModel):
     start_time: datetime
     duration: int
     expires_at: datetime
+    teaching_content: str | None = None
 
     class Config:
         from_attributes = True
@@ -41,4 +42,5 @@ class SessionManageResponse(BaseModel):
     start_time: datetime
     duration: int
     expires_at: datetime
+    teaching_content: str | None = None
     status: str

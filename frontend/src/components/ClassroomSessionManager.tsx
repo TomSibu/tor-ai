@@ -234,6 +234,7 @@ export default function ClassroomSessionManager({ classroomId, backPath, scope }
                   <TableHeader>
                     <TableRow>
                       <TableHead>File</TableHead>
+                      <TableHead>Classroom</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -243,6 +244,7 @@ export default function ClassroomSessionManager({ classroomId, backPath, scope }
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{fileName}</TableCell>
+                          <TableCell>{item.classroom_name || "-"}</TableCell>
                           <TableCell className="text-right">
                             <Button
                               size="sm"

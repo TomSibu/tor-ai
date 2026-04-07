@@ -53,6 +53,7 @@ pytest_cache/
 uploads/
 voice_uploads/
 student_uploads/
+audio/
 
 #DB
 ai_tutor.db

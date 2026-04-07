@@ -61,5 +61,5 @@ def ask_voice(
     return {
         "transcribed_text": question,
         "answer": answer,
-        "audio": f"http://127.0.0.1:8000/{audio_file}"
+        "audio": audio_file
     }

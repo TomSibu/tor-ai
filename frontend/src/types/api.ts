@@ -30,6 +30,7 @@ export interface ContentResponse {
   id: number;
   teacher_id: number;
   classroom_id?: number | null;
+  classroom_name?: string | null;
   file_path: string;
 }
 
@@ -73,6 +74,7 @@ export interface SessionResponse {
   start_time: string;
   duration: number;
   expires_at: string;
+  teaching_content?: string | null;
 }
 
 export interface SessionManageResponse extends SessionResponse {
@@ -83,6 +85,7 @@ export interface SessionManageResponse extends SessionResponse {
   subject?: string | null;
   session_name?: string | null;
   expires_at: string;
+  teaching_content?: string | null;
   status: "live" | "upcoming" | "expired";
 }
 

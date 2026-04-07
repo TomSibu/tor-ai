@@ -116,6 +116,9 @@ def _ensure_session_columns() -> None:
         if "expires_at" not in existing:
             conn.execute(text("ALTER TABLE sessions ADD COLUMN expires_at DATETIME"))
 
+        if "teaching_content" not in existing:
+            conn.execute(text("ALTER TABLE sessions ADD COLUMN teaching_content TEXT"))
+
         rows = conn.execute(text("SELECT id, start_time, duration, expires_at FROM sessions")).fetchall()
         for row in rows:
             session_id = row[0]

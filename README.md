@@ -40,7 +40,7 @@ Backend:
 - SQLAlchemy + SQLite (ai_tutor.db)
 - JWT auth
 - pdfplumber (PDF extraction)
-- gTTS (audio output)
+- Piper TTS (audio output)
 - OpenAI Whisper API (speech-to-text)
 - Gemini API with Mistral fallback
 
@@ -67,12 +67,25 @@ Create a backend .env file at backend/.env:
 GEMINI_API_KEY=your_gemini_key
 MISTRAL_API_KEY=your_mistral_key
 OPENAI_API_KEY=your_openai_key
+PIPER_BIN=piper
+PIPER_MODEL_PATH=E:/models/piper/en_US-lessac-medium.onnx
+PIPER_CONFIG_PATH=E:/models/piper/en_US-lessac-medium.onnx.json
+# Optional (multi-speaker models only)
+PIPER_SPEAKER_ID=0
 ```
 
 Notes:
 - Gemini is used first for teaching/Q&A.
 - Mistral is used as fallback if Gemini fails.
 - OpenAI key is used for speech transcription.
+- Piper is used for text-to-speech synthesis. Install Piper binary and download a model.
+
+Piper quick check:
+
+```bash
+piper --help
+echo "hello class" | piper --model E:/models/piper/en_US-lessac-medium.onnx --output_file test.wav
+```
 
 ## Local Development
 

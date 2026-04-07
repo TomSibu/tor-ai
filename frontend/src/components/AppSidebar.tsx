@@ -47,7 +47,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>
             <Bot className="mr-2 h-4 w-4 text-primary" />
-            {!collapsed && <span className="font-semibold tracking-tight">SmartClass AI</span>}
+            {!collapsed && <span className="font-semibold tracking-tight">TUTOR AI</span>}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

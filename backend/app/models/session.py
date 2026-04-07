@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Text
 from app.db.base import Base
 
 class Session(Base):
@@ -10,3 +10,4 @@ class Session(Base):
     start_time = Column(DateTime)
     duration = Column(Integer)  # in minutes
     expires_at = Column(DateTime)
+    teaching_content = Column(Text, nullable=True)  # Generated AI script

@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -65,7 +67,16 @@ def _build_session_wise_payload(classroom: Classroom, db: Session) -> dict:
     from app.models.user import User as UserModel
 
     students = db.query(Student).filter(Student.classroom_id == classroom.id).order_by(Student.name.asc()).all()
-    sessions = db.query(SessionModel).filter(SessionModel.classroom_id == classroom.id).order_by(SessionModel.start_time.desc()).all()
+    now = datetime.utcnow()
+    sessions = (
+        db.query(SessionModel)
+        .filter(
+            SessionModel.classroom_id == classroom.id,
+            SessionModel.start_time <= now,
+        )
+        .order_by(SessionModel.start_time.desc())
+        .all()
+    )
 
     session_ids = [session.id for session in sessions]
     attendance_rows = db.query(Attendance).filter(Attendance.session_id.in_(session_ids)).all() if session_ids else []
@@ -96,9 +107,12 @@ def _build_session_wise_payload(classroom: Classroom, db: Session) -> dict:
 
         # Get session metadata (subject, teacher name)
         content = db.query(Content).filter(Content.id == session.content_id).first()
-        teacher_assignment = db.query(TeacherClassroom).filter(
-            TeacherClassroom.classroom_id == session.classroom_id
-        ).first()
+        teacher_assignment = None
+        if content and content.teacher_id:
+            teacher_assignment = db.query(TeacherClassroom).filter(
+                TeacherClassroom.classroom_id == session.classroom_id,
+                TeacherClassroom.teacher_id == content.teacher_id,
+            ).first()
         teacher_user = None
         if teacher_assignment:
             teacher_user = db.query(UserModel).filter(UserModel.id == teacher_assignment.teacher_id).first()
@@ -131,7 +145,18 @@ def _build_student_wise_payload(classroom: Classroom, db: Session) -> dict:
     from app.models.user import User as UserModel
 
     students = db.query(Student).filter(Student.classroom_id == classroom.id).order_by(Student.name.asc()).all()
-    sessions = db.query(SessionModel).filter(SessionModel.classroom_id == classroom.id).order_by(SessionModel.start_time.desc()).all()
+    from app.models.content import Content
+
+    now = datetime.utcnow()
+    sessions = (
+        db.query(SessionModel)
+        .filter(
+            SessionModel.classroom_id == classroom.id,
+            SessionModel.start_time <= now,
+        )
+        .order_by(SessionModel.start_time.desc())
+        .all()
+    )
 
     session_ids = [session.id for session in sessions]
     attendance_rows = db.query(Attendance).filter(Attendance.session_id.in_(session_ids)).all() if session_ids else []
@@ -146,9 +171,13 @@ def _build_student_wise_payload(classroom: Classroom, db: Session) -> dict:
 
     session_metadata_map = {}
     for session in sessions:
-        teacher_assignment = db.query(TeacherClassroom).filter(
-            TeacherClassroom.classroom_id == session.classroom_id
-        ).first()
+        content = db.query(Content).filter(Content.id == session.content_id).first()
+        teacher_assignment = None
+        if content and content.teacher_id:
+            teacher_assignment = db.query(TeacherClassroom).filter(
+                TeacherClassroom.classroom_id == session.classroom_id,
+                TeacherClassroom.teacher_id == content.teacher_id,
+            ).first()
         teacher_user = None
         if teacher_assignment:
             teacher_user = db.query(UserModel).filter(UserModel.id == teacher_assignment.teacher_id).first()
@@ -212,6 +241,16 @@ def capture_attendance(
         raise HTTPException(status_code=404, detail="Session not found")
 
     _validate_session_access(session_obj, current_user, db)
+
+    now = datetime.utcnow()
+    expires_at = session_obj.expires_at or (
+        session_obj.start_time + timedelta(minutes=session_obj.duration)
+    )
+    if now < session_obj.start_time:
+        raise HTTPException(status_code=400, detail="Session has not started yet")
+    if now >= expires_at:
+        raise HTTPException(status_code=400, detail="Session has expired")
+
     return capture_session_attendance(db=db, session_id=session_id)
 
 

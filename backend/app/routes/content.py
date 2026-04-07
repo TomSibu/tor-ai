@@ -87,14 +87,24 @@ def list_classroom_contents(
     if current_user.role not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    _validate_classroom_access(classroom_id, current_user, db)
+    classroom = _validate_classroom_access(classroom_id, current_user, db)
 
-    return (
-        db.query(Content)
-        .filter(Content.classroom_id == classroom_id)
-        .order_by(Content.id.desc())
-        .all()
-    )
+    query = db.query(Content).filter(Content.classroom_id == classroom_id)
+    if current_user.role == "teacher":
+        query = query.filter(Content.teacher_id == current_user.id)
+
+    contents = query.order_by(Content.id.desc()).all()
+
+    return [
+        ContentResponse(
+            id=content.id,
+            teacher_id=content.teacher_id,
+            classroom_id=content.classroom_id,
+            classroom_name=classroom.name,
+            file_path=content.file_path,
+        )
+        for content in contents
+    ]
 
 
 @router.delete("/{content_id}")
@@ -114,6 +124,9 @@ def delete_content(
         raise HTTPException(status_code=400, detail="Content is not linked to a classroom")
 
     _validate_classroom_access(content.classroom_id, current_user, db)
+
+    if current_user.role == "teacher" and content.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only delete your own uploaded content")
 
     session_ids = [row.id for row in db.query(SessionModel).filter(SessionModel.content_id == content.id).all()]
     if session_ids:

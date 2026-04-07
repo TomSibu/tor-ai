@@ -9,9 +9,30 @@ import { Badge } from "@/components/ui/badge";
 import { BookOpen, Loader2, PlayCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
+
+type AttendanceStudent = {
+  id: number;
+  name: string;
+  confidence?: number | null;
+};
+
+type AttendanceScanReport = {
+  session_id: number;
+  classroom_id: number;
+  classroom_name: string;
+  total_students: number;
+  present_count: number;
+  absent_count: number;
+  present_students: AttendanceStudent[];
+  absent_students: AttendanceStudent[];
+  message: string;
+};
 
 export default function ClassroomSessions() {
-  const [joinedContent, setJoinedContent] = useState<string>("");
+  const navigate = useNavigate();
+  const [attendanceReport, setAttendanceReport] = useState<AttendanceScanReport | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [joinedSessionName, setJoinedSessionName] = useState<string>("");
   const [openDialog, setOpenDialog] = useState(false);
 
@@ -22,16 +43,16 @@ export default function ClassroomSessions() {
 
   const joinSession = useMutation({
     mutationFn: async (sessionId: number) => {
-      await api.post(`/attendance/capture/${sessionId}`);
-      await api.post(`/ai/start/${sessionId}`);
-      return api.get(`/ai/teach/${sessionId}`).then((r) => r.data);
+      const attendance = await api.post(`/attendance/capture/${sessionId}`).then((r) => r.data);
+      return attendance as AttendanceScanReport;
     },
     onSuccess: (res, sessionId) => {
       const session = sessions.find((entry) => entry.id === sessionId);
       setJoinedSessionName(session?.session_name || `Session #${sessionId}`);
-      setJoinedContent(res?.teaching_content || "No teaching content available.");
+      setSelectedSessionId(sessionId);
+      setAttendanceReport(res);
       setOpenDialog(true);
-      toast.success("Session started with attendance captured");
+      toast.success("Attendance captured. Ready to start lesson");
     },
     onError: (error: any) => {
       const detail = error?.response?.data?.detail || error?.message || "Unable to join session";
@@ -101,13 +122,66 @@ export default function ClassroomSessions() {
       </Card>
 
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{joinedSessionName}</DialogTitle>
-            <DialogDescription>Session teaching content</DialogDescription>
+            <DialogDescription>Attendance captured before lesson start</DialogDescription>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-auto rounded-md bg-muted p-4 text-sm whitespace-pre-wrap">
-            {joinedContent}
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="rounded-md bg-muted p-3">
+                <p className="text-muted-foreground">Total</p>
+                <p className="text-xl font-semibold">{attendanceReport?.total_students ?? 0}</p>
+              </div>
+              <div className="rounded-md bg-muted p-3">
+                <p className="text-muted-foreground">Present</p>
+                <p className="text-xl font-semibold text-emerald-600">{attendanceReport?.present_count ?? 0}</p>
+              </div>
+              <div className="rounded-md bg-muted p-3">
+                <p className="text-muted-foreground">Absent</p>
+                <p className="text-xl font-semibold text-rose-600">{attendanceReport?.absent_count ?? 0}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-md border p-3 max-h-44 overflow-auto">
+                <p className="mb-2 font-medium">Present Students</p>
+                {attendanceReport?.present_students?.length ? (
+                  <ul className="space-y-1">
+                    {attendanceReport.present_students.map((student) => (
+                      <li key={student.id}>{student.name}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground">No students detected</p>
+                )}
+              </div>
+              <div className="rounded-md border p-3 max-h-44 overflow-auto">
+                <p className="mb-2 font-medium">Absent Students</p>
+                {attendanceReport?.absent_students?.length ? (
+                  <ul className="space-y-1">
+                    {attendanceReport.absent_students.map((student) => (
+                      <li key={student.id}>{student.name}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground">No absentees</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setOpenDialog(false)}>Close</Button>
+              <Button
+                onClick={() => {
+                  if (!selectedSessionId) return;
+                  setOpenDialog(false);
+                  navigate(`/classroom/teaching/${selectedSessionId}`);
+                }}
+              >
+                Start Teaching Experience
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
