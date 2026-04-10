@@ -6,8 +6,10 @@ import unicodedata
 from pathlib import Path
 
 from gtts import gTTS
+from sqlalchemy.orm import Session
 
 from app.config import PIPER_BIN, PIPER_MODEL_PATH, PIPER_CONFIG_PATH, PIPER_SPEAKER_ID
+from app.models.generated_audio import GeneratedAudio
 
 AUDIO_DIR = "audio"
 os.makedirs(AUDIO_DIR, exist_ok=True)
@@ -17,6 +19,23 @@ def _to_public_audio_path(file_path: str) -> str:
     """Convert a generated local file path into a static URL path."""
     filename = Path(file_path).name
     return f"/audio/{filename}"
+
+
+def _to_db_audio_url(audio_key: str) -> str:
+    return f"/ai/audio/{audio_key}"
+
+
+def _persist_audio_blob(db: Session, audio_key: str, mime_type: str, file_path: str) -> str:
+    with open(file_path, "rb") as audio_file:
+        payload = audio_file.read()
+
+    existing = db.query(GeneratedAudio).filter(GeneratedAudio.audio_key == audio_key).first()
+    if existing:
+        return _to_db_audio_url(audio_key)
+
+    db.add(GeneratedAudio(audio_key=audio_key, mime_type=mime_type, data=payload))
+    db.commit()
+    return _to_db_audio_url(audio_key)
 
 
 def _run_piper(command: list[str], payload: bytes) -> tuple[bool, str]:
@@ -42,7 +61,7 @@ def _run_gtts(text: str, file_path: str) -> None:
     tts.save(file_path)
 
 
-def text_to_speech(text: str) -> str:
+def text_to_speech(text: str, db: Session | None = None) -> str:
     clean_text = (text or "").strip()
     if not clean_text:
         raise RuntimeError("Cannot synthesize empty text")
@@ -52,10 +71,14 @@ def text_to_speech(text: str) -> str:
 
     # Reuse audio for identical text so repeated starts are instant.
     cache_key = hashlib.sha1(clean_text.encode("utf-8", errors="ignore")).hexdigest()[:20]
+
+    if db is not None:
+        existing = db.query(GeneratedAudio).filter(GeneratedAudio.audio_key == cache_key).first()
+        if existing:
+            return _to_db_audio_url(cache_key)
+
     wav_filename = f"{cache_key}.wav"
     wav_file_path = os.path.join(AUDIO_DIR, wav_filename)
-    if os.path.exists(wav_file_path):
-        return _to_public_audio_path(wav_file_path)
 
     if not PIPER_MODEL_PATH:
         raise RuntimeError("PIPER_MODEL_PATH is not configured")
@@ -86,13 +109,17 @@ def text_to_speech(text: str) -> str:
         ok, error = _run_piper(minimal_command, payload)
 
     if ok and os.path.exists(wav_file_path):
+        if db is not None:
+            try:
+                return _persist_audio_blob(db, cache_key, "audio/wav", wav_file_path)
+            finally:
+                if os.path.exists(wav_file_path):
+                    os.remove(wav_file_path)
         return _to_public_audio_path(wav_file_path)
 
     # Fallback for environments where Piper binary/model crashes on Windows.
     mp3_filename = f"{cache_key}.mp3"
     mp3_file_path = os.path.join(AUDIO_DIR, mp3_filename)
-    if os.path.exists(mp3_file_path):
-        return _to_public_audio_path(mp3_file_path)
     try:
         _run_gtts(clean_text, mp3_file_path)
     except Exception as exc:
@@ -100,5 +127,12 @@ def text_to_speech(text: str) -> str:
 
     if not os.path.exists(mp3_file_path):
         raise RuntimeError(f"Piper synthesis failed: {error}; gTTS did not produce an audio file")
+
+    if db is not None:
+        try:
+            return _persist_audio_blob(db, cache_key, "audio/mpeg", mp3_file_path)
+        finally:
+            if os.path.exists(mp3_file_path):
+                os.remove(mp3_file_path)
 
     return _to_public_audio_path(mp3_file_path)

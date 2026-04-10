@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import json
@@ -12,6 +12,7 @@ from app.models.session import Session as SessionModel
 from app.models.session_state import SessionState
 from app.models.teacher_classroom import TeacherClassroom
 from app.models.user import User
+from app.models.generated_audio import GeneratedAudio
 from app.schemas.session import SessionCreate, SessionResponse
 from app.services.ai_service import build_teaching_prompt, generate_teaching_content, generate_teaching_step, split_into_chunks
 from app.services.audio_service import text_to_speech
@@ -118,7 +119,7 @@ def start_session(session_id: int, db: Session = Depends(get_db), current_user: 
     teaching = generate_teaching_step(first_chunk)
     audio_path = None
     try:
-        audio_path = text_to_speech(teaching)
+        audio_path = text_to_speech(teaching, db=db)
     except Exception as e:
         print(f"TTS generation failed in /ai/start: {e}")
 
@@ -185,7 +186,7 @@ Question:
     answer = generate_teaching_content(prompt)
     audio_path = None
     try:
-        audio_path = text_to_speech(answer)
+        audio_path = text_to_speech(answer, db=db)
     except Exception as e:
         print(f"TTS generation failed in /ai/ask/{{session_id}}: {e}")
     db.commit()
@@ -227,7 +228,7 @@ def continue_session(session_id: int, db: Session = Depends(get_db), current_use
     teaching = generate_teaching_step(next_chunk)
     audio_url = None
     try:
-        audio_url = text_to_speech(teaching)
+        audio_url = text_to_speech(teaching, db=db)
     except Exception as e:
         print(f"TTS generation failed in /ai/continue/{{session_id}}: {e}")
 
@@ -344,7 +345,7 @@ def start_teaching_session(
     try:
         clean_script = _sanitize_tts_text(session_obj.teaching_content)
         if clean_script:
-            audio_path = text_to_speech(clean_script)
+            audio_path = text_to_speech(clean_script, db=db)
             print(f"[AUDIO] Generated lecture audio: {audio_path}")
     except Exception as e:
         print(f"[AUDIO] Failed to generate lecture audio: {e}")
@@ -430,7 +431,7 @@ def answer_classroom_question(
             clean_answer = _sanitize_tts_text(buffered_answer)
             if clean_answer:
                 try:
-                    audio_path = text_to_speech(clean_answer)
+                    audio_path = text_to_speech(clean_answer, db=db)
                 except Exception:
                     audio_path = None
 
@@ -530,4 +531,48 @@ def end_teaching_session(
         "message": "Teaching session ended",
         "session_id": session_id,
     }
+
+
+@router.get("/audio/{audio_key}")
+def get_generated_audio(audio_key: str, request: Request, db: Session = Depends(get_db)):
+    audio = db.query(GeneratedAudio).filter(GeneratedAudio.audio_key == audio_key).first()
+    if not audio:
+        raise HTTPException(status_code=404, detail="Audio not found")
+
+    audio_bytes = bytes(audio.data)
+    total_size = len(audio_bytes)
+    range_header = request.headers.get("range")
+
+    if range_header:
+        try:
+            range_value = range_header.strip().lower().replace("bytes=", "")
+            start_str, end_str = range_value.split("-", 1)
+            start = int(start_str) if start_str else 0
+            end = int(end_str) if end_str else total_size - 1
+            end = min(end, total_size - 1)
+            if start < 0 or start > end or start >= total_size:
+                raise ValueError("invalid range")
+
+            chunk = audio_bytes[start : end + 1]
+            return Response(
+                content=chunk,
+                status_code=206,
+                media_type=audio.mime_type or "audio/wav",
+                headers={
+                    "Content-Range": f"bytes {start}-{end}/{total_size}",
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": str(len(chunk)),
+                },
+            )
+        except Exception:
+            raise HTTPException(status_code=416, detail="Invalid range request")
+
+    return Response(
+        content=audio_bytes,
+        media_type=audio.mime_type or "audio/wav",
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(total_size),
+        },
+    )
 

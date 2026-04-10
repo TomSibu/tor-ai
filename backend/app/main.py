@@ -6,7 +6,7 @@ from app.models import user
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from datetime import timedelta
-from app.models import User, Classroom, Student, Content, Session, SessionState, Attendance, TeacherClassroom
+from app.models import User, Classroom, Student, Content, Session, SessionState, Attendance, TeacherClassroom, GeneratedAudio
 
 app = FastAPI()
 app.add_middleware(
@@ -65,6 +65,12 @@ def _ensure_student_columns() -> None:
             conn.execute(text("ALTER TABLE students ADD COLUMN phone VARCHAR"))
         if "photo_path" not in existing:
             conn.execute(text("ALTER TABLE students ADD COLUMN photo_path VARCHAR"))
+        if "photo_filename" not in existing:
+            conn.execute(text("ALTER TABLE students ADD COLUMN photo_filename VARCHAR"))
+        if "photo_mime_type" not in existing:
+            conn.execute(text("ALTER TABLE students ADD COLUMN photo_mime_type VARCHAR"))
+        if "photo_data" not in existing:
+            conn.execute(text("ALTER TABLE students ADD COLUMN photo_data BLOB"))
 
 
 _ensure_student_columns()
@@ -100,6 +106,12 @@ def _ensure_content_columns() -> None:
         existing = {row[1] for row in cols}
         if "classroom_id" not in existing:
             conn.execute(text("ALTER TABLE contents ADD COLUMN classroom_id INTEGER"))
+        if "file_name" not in existing:
+            conn.execute(text("ALTER TABLE contents ADD COLUMN file_name VARCHAR"))
+        if "file_mime_type" not in existing:
+            conn.execute(text("ALTER TABLE contents ADD COLUMN file_mime_type VARCHAR"))
+        if "file_data" not in existing:
+            conn.execute(text("ALTER TABLE contents ADD COLUMN file_data BLOB"))
 
 
 _ensure_content_columns()
@@ -137,6 +149,27 @@ def _ensure_session_columns() -> None:
 
 
 _ensure_session_columns()
+
+
+def _ensure_generated_audio_table() -> None:
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS generated_audio (
+                    id INTEGER PRIMARY KEY,
+                    audio_key VARCHAR NOT NULL UNIQUE,
+                    mime_type VARCHAR NOT NULL DEFAULT 'audio/wav',
+                    data BLOB NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+        )
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_generated_audio_audio_key ON generated_audio (audio_key)"))
+
+
+_ensure_generated_audio_table()
 
 @app.get("/")
 def read_root():

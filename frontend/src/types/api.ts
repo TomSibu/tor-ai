@@ -32,6 +32,30 @@ export interface ContentResponse {
   classroom_id?: number | null;
   classroom_name?: string | null;
   file_path: string;
+  file_name?: string | null;
+  file_url?: string | null;
+}
+
+export interface StudyMaterialContent {
+  id: number;
+  file_name: string;
+  file_path: string;
+  file_url: string;
+}
+
+export interface StudyMaterialGroup {
+  assignment_id: number;
+  subject: string | null;
+  teacher_id: number;
+  teacher_name: string;
+  content_count: number;
+  contents: StudyMaterialContent[];
+}
+
+export interface ClassroomStudyMaterialsResponse {
+  classroom_id: number;
+  classroom_name: string;
+  materials: StudyMaterialGroup[];
 }
 
 export interface AssignedClassResponse {

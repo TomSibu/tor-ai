@@ -131,10 +131,28 @@ def get_classroom_details(
                 "subject": assignment.subject
             })
     
+    students_payload = [
+        {
+            "id": student.id,
+            "name": student.name,
+            "roll_number": student.roll_number,
+            "email": student.email,
+            "phone": student.phone,
+            # Expose a URL/path only; never include raw photo_data bytes in JSON payloads.
+            "photo_path": student.photo_path,
+            "classroom_id": student.classroom_id,
+        }
+        for student in students
+    ]
+
     return {
-        "classroom": classroom,
-        "students": students,
-        "teachers": teacher_details
+        "classroom": {
+            "id": classroom.id,
+            "name": classroom.name,
+            "user_id": classroom.user_id,
+        },
+        "students": students_payload,
+        "teachers": teacher_details,
     }
 
 from app.models.teacher_classroom import TeacherClassroom

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, LargeBinary
 from app.db.base import Base
 
 class Student(Base):
@@ -10,4 +10,7 @@ class Student(Base):
     email = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     photo_path = Column(String, nullable=True)  # Path to student photo for facial recognition
+    photo_filename = Column(String, nullable=True)
+    photo_mime_type = Column(String, nullable=True)
+    photo_data = Column(LargeBinary, nullable=True)
     classroom_id = Column(Integer, ForeignKey("classrooms.id"))

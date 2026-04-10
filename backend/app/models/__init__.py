@@ -6,3 +6,4 @@ from .session import Session
 from .session_state import SessionState
 from .attendance import Attendance
 from .teacher_classroom import TeacherClassroom
+from .generated_audio import GeneratedAudio

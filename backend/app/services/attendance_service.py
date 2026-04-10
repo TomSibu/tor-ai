@@ -4,6 +4,7 @@ import os
 import time
 from dataclasses import dataclass
 from typing import Optional
+from io import BytesIO
 
 import cv2
 import face_recognition
@@ -38,10 +39,20 @@ def _load_known_faces(students: list[Student]) -> list[KnownFace]:
     known_faces: list[KnownFace] = []
 
     for student in students:
-        if not student.photo_path or not os.path.exists(student.photo_path):
+        image = None
+
+        if student.photo_data:
+            try:
+                image = face_recognition.load_image_file(BytesIO(student.photo_data))
+            except Exception:
+                image = None
+
+        if image is None and student.photo_path and os.path.exists(student.photo_path):
+            image = face_recognition.load_image_file(student.photo_path)
+
+        if image is None:
             continue
 
-        image = face_recognition.load_image_file(student.photo_path)
         encodings = face_recognition.face_encodings(image)
         if not encodings:
             continue

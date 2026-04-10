@@ -56,7 +56,7 @@ def ask_voice(
     answer = generate_teaching_content(question)
 
     # Convert answer → audio
-    audio_file = text_to_speech(answer)
+    audio_file = text_to_speech(answer, db=db)
 
     return {
         "transcribed_text": question,
