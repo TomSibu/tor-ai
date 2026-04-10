@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FTomSibu%2Ftor-ai&count_bg=%231E293B&title_bg=%230F172A&icon=github.svg&icon_color=%23E7E7E7&title=Repo+Views&edge_flat=false" alt="Repository view counter" />
+![GitHub Repo Views](https://gitviews.com/repo/TomSibu/tor-ai.svg)
 </p>
 
 <p align="center">
