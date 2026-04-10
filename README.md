@@ -1,6 +1,8 @@
+
 <p align="center">
-![GitHub Repo Views](https://gitviews.com/repo/TomSibu/tor-ai.svg)
+<img src="https://gitviews.com/repo/TomSibu/tor-ai.svg" alt="Repo Views" />
 </p>
+
 
 <p align="center">
 <a href="https://github.com/TomSibu/tor-ai/stargazers"><img src="https://img.shields.io/github/stars/TomSibu/tor-ai?style=for-the-badge&logo=github" alt="GitHub Stars" /></a>
