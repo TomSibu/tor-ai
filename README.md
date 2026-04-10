@@ -1,20 +1,12 @@
-<div align="center">
+<p align="center">
+<img src="https://visitcount.itsvg.in/api?id=TomSibuTORAI&label=Repo%20Views&color=1&icon=5&pretty=true" alt="Repository view counter" />
+</p>
 
-	<img src="https://visitcount.itsvg.in/api?id=TomSibuTORAI&label=Repo%20Views&color=1&icon=5&pretty=true" alt="Repository view counter" />
-
-	<br />
-
-	<a href="https://github.com/TomSibu/tor-ai/stargazers">
-		<img src="https://img.shields.io/github/stars/TomSibu/tor-ai?style=for-the-badge&logo=github" alt="GitHub Stars" />
-	</a>
-	<a href="https://github.com/TomSibu/tor-ai/network/members">
-		<img src="https://img.shields.io/github/forks/TomSibu/tor-ai?style=for-the-badge&logo=github" alt="GitHub Forks" />
-	</a>
-	<a href="https://github.com/TomSibu">
-		<img src="https://img.shields.io/badge/GitHub-@TomSibu-181717?style=for-the-badge&logo=github" alt="TomSibu GitHub Profile" />
-	</a>
-
-</div>
+<p align="center">
+<a href="https://github.com/TomSibu/tor-ai/stargazers"><img src="https://img.shields.io/github/stars/TomSibu/tor-ai?style=for-the-badge&logo=github" alt="GitHub Stars" /></a>
+<a href="https://github.com/TomSibu/tor-ai/network/members"><img src="https://img.shields.io/github/forks/TomSibu/tor-ai?style=for-the-badge&logo=github" alt="GitHub Forks" /></a>
+<a href="https://github.com/TomSibu"><img src="https://img.shields.io/badge/GitHub-@TomSibu-181717?style=for-the-badge&logo=github" alt="TomSibu GitHub Profile" /></a>
+</p>
 
 # AI Tutor Platform
 
