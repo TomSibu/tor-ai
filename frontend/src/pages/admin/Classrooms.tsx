@@ -23,6 +23,11 @@ export default function Classrooms() {
     queryFn: () => api.get("/users/teachers").then(r => r.data),
   });
 
+  const { data: subjectSuggestions = [] } = useQuery<string[]>({
+    queryKey: ["subject-suggestions"],
+    queryFn: () => api.get("/classrooms/subjects").then(r => r.data),
+  });
+
   const [teacherId, setTeacherId] = useState("");
   const [classroomId, setClassroomId] = useState("");
   const [subject, setSubject] = useState("");
@@ -41,10 +46,12 @@ export default function Classrooms() {
           <div className="space-y-2">
             <Label>Teacher</Label>
             <Select value={teacherId} onValueChange={setTeacherId}>
-              <SelectTrigger><SelectValue placeholder="Choose a teacher" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Choose a teacher or admin" /></SelectTrigger>
               <SelectContent>
                 {teachers.map((teacher) => (
-                  <SelectItem key={teacher.id} value={String(teacher.id)}>{teacher.name} ({teacher.email})</SelectItem>
+                  <SelectItem key={teacher.id} value={String(teacher.id)}>
+                    {teacher.name} ({teacher.email}) {teacher.role === "admin" ? "- Admin" : "- Teacher"}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -60,7 +67,20 @@ export default function Classrooms() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2"><Label>Subject</Label><Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Mathematics" /></div>
+          <div className="space-y-2">
+            <Label>Subject</Label>
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. Mathematics"
+              list="subject-suggestions"
+            />
+            <datalist id="subject-suggestions">
+              {subjectSuggestions.map((item) => (
+                <option key={item} value={item} />
+              ))}
+            </datalist>
+          </div>
           <Button onClick={() => assign.mutate()} disabled={!teacherId || !classroomId || !subject || assign.isPending}>
             <LinkIcon className="mr-2 h-4 w-4" /> Assign
           </Button>

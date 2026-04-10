@@ -13,7 +13,7 @@ export default function Analytics() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Attendance & Analytics</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
       <Card className="glass-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" /> Classrooms & Teachers</CardTitle>

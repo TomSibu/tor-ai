@@ -22,7 +22,7 @@ const adminItems = [
 
 const teacherItems = [
   { title: "My Classes", url: "/teacher/classes", icon: GraduationCap },
-  { title: "Manage Classrooms", url: "/teacher/classroom-management", icon: Layers },
+  { title: "Attendance Logs", url: "/teacher/classroom-management", icon: Layers },
   { title: "Sessions", url: "/teacher/sessions", icon: BookOpen },
 ];
 

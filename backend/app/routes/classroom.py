@@ -47,6 +47,35 @@ def assign_teacher(
 
     return {"message": "Assigned successfully"}
 
+
+@router.get("/subjects")
+def list_subject_suggestions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    rows = (
+        db.query(TeacherClassroom.subject)
+        .filter(TeacherClassroom.subject.isnot(None), TeacherClassroom.subject != "")
+        .all()
+    )
+
+    seen = set()
+    subjects = []
+    for (raw_subject,) in rows:
+        subject = (raw_subject or "").strip()
+        if not subject:
+            continue
+
+        dedupe_key = subject.casefold()
+        if dedupe_key in seen:
+            continue
+
+        seen.add(dedupe_key)
+        subjects.append(subject)
+
+    subjects.sort(key=lambda value: value.casefold())
+    return subjects
+
 @router.get("/", response_model=list[ClassroomResponse])
 def get_classrooms(
     db: Session = Depends(get_db),

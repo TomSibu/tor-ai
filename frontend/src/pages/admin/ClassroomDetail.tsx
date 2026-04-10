@@ -61,6 +61,11 @@ export default function ClassroomDetail() {
     queryFn: () => api.get("/users/teachers").then(r => r.data),
   });
 
+  const { data: subjectSuggestions = [] } = useQuery<string[]>({
+    queryKey: ["subject-suggestions"],
+    queryFn: () => api.get("/classrooms/subjects").then(r => r.data),
+  });
+
   const addStudent = useMutation({
     mutationFn: async () => {
       const student = await api.post("/students/", {
@@ -283,11 +288,11 @@ export default function ClassroomDetail() {
                 <div className="space-y-2">
                   <Label>Teacher *</Label>
                   <Select value={teacherId} onValueChange={setTeacherId}>
-                    <SelectTrigger><SelectValue placeholder="Choose a teacher" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Choose a teacher or admin" /></SelectTrigger>
                     <SelectContent>
                       {teachers.map((teacher) => (
                         <SelectItem key={teacher.id} value={String(teacher.id)}>
-                          {teacher.name} ({teacher.email})
+                          {teacher.name} ({teacher.email}) {teacher.role === "admin" ? "- Admin" : "- Teacher"}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -301,7 +306,13 @@ export default function ClassroomDetail() {
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="e.g., Mathematics"
+                    list="subject-suggestions"
                   />
+                  <datalist id="subject-suggestions">
+                    {subjectSuggestions.map((item) => (
+                      <option key={item} value={item} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <Button

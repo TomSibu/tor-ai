@@ -232,4 +232,9 @@ def get_teachers(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin"))
 ):
-    return db.query(User).filter(User.role == "teacher", User.verified == True).all()
+    return (
+        db.query(User)
+        .filter(User.role.in_(["teacher", "admin"]), User.verified == True)
+        .order_by(User.role.asc(), User.name.asc())
+        .all()
+    )
