@@ -171,6 +171,21 @@ def _ensure_generated_audio_table() -> None:
 
 _ensure_generated_audio_table()
 
+
+def _ensure_user_columns() -> None:
+    """Backfill user columns for existing SQLite databases."""
+    with engine.begin() as conn:
+        cols = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+        if not cols:
+            return
+
+        existing = {row[1] for row in cols}
+        if "profile_pic" not in existing:
+            conn.execute(text("ALTER TABLE users ADD COLUMN profile_pic VARCHAR"))
+
+
+_ensure_user_columns()
+
 @app.get("/")
 def read_root():
     return {"message": "AI Tutor Backend Running 🚀"}

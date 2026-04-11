@@ -18,6 +18,7 @@ export interface UserResponse {
   email: string;
   role: UserRole;
   verified: boolean;
+  profile_pic?: string | null;
 }
 
 export interface ClassroomResponse {

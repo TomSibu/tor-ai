@@ -10,3 +10,4 @@ class User(Base):
     password = Column(String, nullable=False)
     role = Column(String, nullable=False)  # admin, teacher, classroom
     verified = Column(Boolean, default=False)
+    profile_pic = Column(String, nullable=True)

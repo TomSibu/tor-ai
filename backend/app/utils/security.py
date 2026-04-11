@@ -1,16 +1,19 @@
 from passlib.context import CryptContext
-import hashlib
+from passlib.exc import UnknownHashError
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
-    print("RAW PASSWORD:", password)
-    hashed = hashlib.sha256(password.encode()).hexdigest()
-    print("SHA256 HASH:", hashed)
-    return pwd_context.hash(hashed)
+    return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    hashed = hashlib.sha256(plain_password.encode()).hexdigest()
-    return pwd_context.verify(hashed, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except UnknownHashError:
+        return False
+
+
+def is_password_hashed(password_value: str) -> bool:
+    return pwd_context.identify(password_value) is not None

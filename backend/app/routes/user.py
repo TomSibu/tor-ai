@@ -10,11 +10,19 @@ from app.models.session_state import SessionState
 from app.models.student import Student
 from app.models.teacher_classroom import TeacherClassroom
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse, UserUpdate, UserSelfUpdate
-#from app.utils.security import hash_password
+from app.schemas.user import UserCreate, UserResponse, UserUpdate, UserSelfUpdate, ForgotPasswordResetRequest
+from app.utils.security import hash_password, verify_password, is_password_hashed
 from app.utils.dependencies import get_current_user, require_role
 
 router = APIRouter()
+
+MAX_PROFILE_PIC_DATA_URL_LENGTH = 10 * 1024 * 1024
+ALLOWED_PROFILE_PIC_PREFIXES = (
+    "data:image/jpeg;base64,",
+    "data:image/png;base64,",
+    "data:image/webp;base64,",
+    "data:image/gif;base64,",
+)
 
 @router.post("/register", response_model=UserResponse)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
@@ -24,14 +32,14 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    #hashed_pw = hash_password(user.password)
+    hashed_pw = hash_password(user.password)
 
     is_verified = True if user.role == "admin" else False
 
     new_user = User(
         name=user.name,
         email=user.email,
-        password=user.password,
+        password=hashed_pw,
         role=user.role,
         verified=is_verified
     )
@@ -55,7 +63,6 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
     return new_user
 
-#from app.utils.security import verify_password
 from app.utils.jwt import create_access_token
 
 from app.schemas.user import UserLogin
@@ -68,7 +75,16 @@ def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    if user_data.password != user.password:
+    password_is_valid = verify_password(user_data.password, user.password)
+
+    # Backward compatibility: allow existing plaintext passwords and migrate in-place.
+    if not password_is_valid and user_data.password == user.password:
+        user.password = hash_password(user_data.password)
+        db.commit()
+        db.refresh(user)
+        password_is_valid = True
+
+    if not password_is_valid:
         raise HTTPException(status_code=400, detail="Invalid email or password")
     
     if not user.verified:
@@ -82,6 +98,22 @@ def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
     return {
         "access_token": token,
         "token_type": "bearer"
+    }
+
+
+@router.post("/forgot-password")
+def forgot_password_reset(payload: ForgotPasswordResetRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.password = hash_password(payload.new_password)
+    user.verified = False
+
+    db.commit()
+
+    return {
+        "message": "Password reset request submitted. Your account is pending admin verification."
     }
 
 @router.get("/me", response_model=UserResponse)
@@ -121,7 +153,20 @@ def update_me(
         user.name = payload.name
 
     if payload.password is not None:
-        user.password = payload.password
+        user.password = hash_password(payload.password)
+
+    if payload.profile_pic is not None:
+        normalized_profile_pic = payload.profile_pic.strip()
+        if normalized_profile_pic == "":
+            user.profile_pic = None
+        else:
+            if not normalized_profile_pic.startswith(ALLOWED_PROFILE_PIC_PREFIXES):
+                raise HTTPException(status_code=400, detail="Profile picture must be JPEG, PNG, WEBP, or GIF")
+
+            if len(normalized_profile_pic) > MAX_PROFILE_PIC_DATA_URL_LENGTH:
+                raise HTTPException(status_code=400, detail="Profile picture is too large")
+
+            user.profile_pic = normalized_profile_pic
 
     db.commit()
     db.refresh(user)
@@ -226,7 +271,11 @@ def update_user(
             classroom.name = payload.name
 
     if payload.password is not None:
-        user.password = payload.password
+        user.password = hash_password(payload.password)
+
+    # Safety net for admin updates on legacy rows without password changes.
+    if not is_password_hashed(user.password):
+        user.password = hash_password(user.password)
 
     if payload.verified is not None:
         user.verified = payload.verified

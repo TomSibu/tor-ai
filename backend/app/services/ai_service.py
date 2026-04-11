@@ -1,4 +1,4 @@
-import google.generativeai as genai
+from google import genai
 from openai import OpenAI
 import requests
 from typing import Generator
@@ -6,7 +6,7 @@ from typing import Generator
 from app.config import GEMINI_API_KEY, MISTRAL_API_KEY
 
 # Setup Gemini
-genai.configure(api_key=GEMINI_API_KEY)
+gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 # Setup Mistral (via OpenAI-compatible API)
 mistral_client = OpenAI(
@@ -20,13 +20,18 @@ OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
 def generate_with_gemini(prompt: str, system: str = None) -> str:
     """Generate content using Google Gemini API."""
-    model = genai.GenerativeModel("gemini-pro")
-    
-    if system:
-        response = model.generate_content(f"{system}\n\n{prompt}")
-    else:
-        response = model.generate_content(prompt)
-    
+    if not gemini_client:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
+
+    contents = f"{system}\n\n{prompt}" if system else prompt
+    response = gemini_client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=contents,
+    )
+
+    if not response.text:
+        raise RuntimeError("Gemini returned an empty response")
+
     return response.text
 
 

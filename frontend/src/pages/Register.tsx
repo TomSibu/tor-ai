@@ -41,7 +41,7 @@ export default function Register() {
             <Bot className="h-7 w-7 text-primary" />
           </div>
           <CardTitle className="text-2xl tracking-tight">Create Account</CardTitle>
-          <CardDescription>Register for Smart Classroom</CardDescription>
+          <CardDescription>Register for TUTOR AI</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

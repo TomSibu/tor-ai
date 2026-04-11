@@ -14,6 +14,7 @@ class UserResponse(BaseModel):
     email: str
     role: str
     verified: bool
+    profile_pic: str | None = None
 
     class Config:
         from_attributes = True
@@ -30,7 +31,13 @@ class UserSelfUpdate(BaseModel):
     name: str | None = None
     email: EmailStr | None = None
     password: str | None = None
+    profile_pic: str | None = None
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class ForgotPasswordResetRequest(BaseModel):
+    email: EmailStr
+    new_password: str
