@@ -12,225 +12,256 @@
 
 # AI Tutor Platform
 
-AI Tutor is a full-stack learning platform with role-based access, session-based teaching, PDF content ingestion, and AI-assisted Q&A.
+TUTOR AI is a full-stack classroom tutoring platform built around role-based workflows for admins, teachers, and classroom users.
 
-It includes:
-- FastAPI backend with SQLite
-- React + Vite + TypeScript frontend
-- JWT authentication and role-based authorization
-- AI teaching flow using Gemini with Mistral fallback
-- Voice question flow (speech-to-text + text-to-speech)
+The system combines classroom management, content distribution, attendance tooling, and AI-assisted teaching into one application.
 
-## Repository Layout
+## Core Features
 
-```text
-TOR AI/
-|- backend/
-|  |- app/
-|  |  |- main.py
-|  |  |- routes/
-|  |  |- models/
-|  |  |- schemas/
-|  |  |- services/
-|  |  |- db/
-|  |  |- utils/
-|  |- requirements.txt
-|  |- uploads/
-|  |- audio/
-|  |- voice_uploads/
-|- frontend/
-|  |- src/
-|  |- public/
-|  |- package.json
-|- README.md
-```
+- Role-based authentication and authorization (`admin`, `teacher`, `classroom`)
+- Admin-managed user verification flow
+- Classroom and teacher assignment management
+- Student roster management with photo uploads
+- Study material uploads (PDF) with classroom-level access control
+- Session scheduling and classroom session execution
+- AI teaching flow with generated lecture-style content
+- Voice pipeline support (speech-to-text + text-to-speech)
+- Profile management (including profile picture)
+- Forgot password flow that reverts user to pending verification
+- Persistent light/dark theme toggle across all pages
 
-## Current Tech Stack
+## Tech Stack
 
 Backend:
 - FastAPI
-- SQLAlchemy + SQLite (ai_tutor.db)
-- JWT auth
-- pdfplumber (PDF extraction)
-- Piper TTS (audio output)
-- OpenAI Whisper API (speech-to-text)
-- Gemini API with Mistral fallback
+- SQLAlchemy
+- SQLite (default local database)
+- JWT token auth
+- Passlib password hashing
+- Google GenAI + Mistral + OpenAI integrations
+- pdfplumber, OpenCV, face-recognition, SpeechRecognition, Whisper, gTTS
 
 Frontend:
 - React 18
 - Vite 5
 - TypeScript
-- Tailwind CSS
-- Radix UI components
+- Tailwind CSS + shadcn/ui (Radix primitives)
+- TanStack Query
 - React Router
 - Axios
 
-## Prerequisites
+## Project Structure
+
+```text
+TOR AI/
+|- backend/
+|  |- app/
+|  |  |- main.py              # FastAPI app entry and startup schema backfills
+|  |  |- config.py            # environment config
+|  |  |- db/                  # SQLAlchemy base/session
+|  |  |- models/              # ORM models
+|  |  |- routes/              # API route modules
+|  |  |- schemas/             # Pydantic request/response models
+|  |  |- services/            # AI, audio, PDF, attendance logic
+|  |  |- utils/               # auth, dependencies, security helpers
+|  |- requirements.txt
+|  |- .env.example
+|- frontend/
+|  |- src/
+|  |  |- components/
+|  |  |- contexts/
+|  |  |- lib/
+|  |  |- pages/
+|  |- public/
+|  |- package.json
+|  |- .env.example
+|- .gitignore
+|- README.md
+|- LICENSE
+```
+
+## From-Scratch Setup
+
+## 1. Prerequisites
 
 - Python 3.10+
 - Node.js 18+
 - npm 9+
 
-## Environment Variables
-
-Create a backend .env file at backend/.env:
-
-```env
-GEMINI_API_KEY=your_gemini_key
-MISTRAL_API_KEY=your_mistral_key
-OPENAI_API_KEY=your_openai_key
-PIPER_BIN=piper
-PIPER_MODEL_PATH=E:/models/piper/en_US-lessac-medium.onnx
-PIPER_CONFIG_PATH=E:/models/piper/en_US-lessac-medium.onnx.json
-# Optional (multi-speaker models only)
-PIPER_SPEAKER_ID=0
-```
-
-Notes:
-- Gemini is used first for teaching/Q&A.
-- Mistral is used as fallback if Gemini fails.
-- OpenAI key is used for speech transcription.
-- Piper is used for text-to-speech synthesis. Install Piper binary and download a model.
-
-Piper quick check:
+## 2. Clone Repository
 
 ```bash
-piper --help
-echo "hello class" | piper --model E:/models/piper/en_US-lessac-medium.onnx --output_file test.wav
+git clone <your-repo-url>
+cd "TOR AI"
 ```
 
-## Local Development
-
-### 1) Start Backend
-
-From repository root:
+## 3. Backend Setup
 
 ```bash
 cd backend
 python -m venv .venv
-# Windows PowerShell
+```
+
+Activate environment:
+
+Windows PowerShell:
+
+```powershell
 .\.venv\Scripts\Activate.ps1
+```
+
+Install backend dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+Create local environment file from example:
+
+```bash
+copy .env.example .env
+```
+
+Populate values in `backend/.env`:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+MISTRAL_API_KEY=your_mistral_api_key
+OPENAI_API_KEY=your_openai_api_key
+
+# Piper text-to-speech
+PIPER_BIN=piper
+PIPER_MODEL_PATH=E:/models/piper/en_US-lessac-medium.onnx
+PIPER_CONFIG_PATH=E:/models/piper/en_US-lessac-medium.onnx.json
+PIPER_SPEAKER_ID=0
+```
+
+Run backend:
+
+```bash
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Backend URLs:
 - API root: http://127.0.0.1:8000/
-- Interactive docs: http://127.0.0.1:8000/docs
+- OpenAPI docs: http://127.0.0.1:8000/docs
 
-### 2) Start Frontend
+## 4. Frontend Setup
 
-Open a new terminal from repository root:
+Open a second terminal from repository root:
 
 ```bash
 cd frontend
 npm install
+```
+
+Create local frontend env file from example:
+
+```bash
+copy .env.example .env
+```
+
+Default frontend env value:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+Run frontend:
+
+```bash
 npm run dev
 ```
 
-Frontend URL (default Vite):
+Frontend URL:
 - http://127.0.0.1:5173/
 
-## API Overview
+## Runtime Behavior and Auth Rules
 
-Base URL: http://127.0.0.1:8000
+- Admin users are auto-verified at registration.
+- Teacher and classroom users require admin verification before login.
+- Passwords are stored hashed.
+- Forgot-password flow changes password and marks account unverified again.
+- Profile-page password changes do not trigger re-verification.
 
-Auth and users:
-- POST /users/register
-- POST /users/login
-- GET /users/me
-- GET /users/pending-users
-- PUT /users/verify/{user_id}
-- DELETE /users/{user_id}
-- GET /users/my-classes
+## Data and Storage Notes
 
-Classrooms:
-- POST /classrooms/
-- POST /classrooms/assign-teacher
-- GET /classrooms/
-- GET /classrooms/my-dashboard
+- Default local DB: `backend/ai_tutor.db`
+- Media is DB-backed for core flows (student photos, content files, generated audio)
+- Legacy folder paths may exist locally but are not required for normal DB-backed operations
+- Startup includes SQLite schema backfill helpers for compatibility with older local DBs
 
-Students:
-- POST /students/
-- GET /students/classroom/{classroom_id}
+## Useful Commands
 
-Content:
-- POST /content/upload
+Backend:
 
-Sessions:
-- POST /sessions/
+```bash
+cd backend
+uvicorn app.main:app --reload
+```
 
-AI session flow:
-- GET /ai/teach/{session_id}
-- POST /ai/ask
-- POST /ai/start/{session_id}
-- POST /ai/ask/{session_id}
-- POST /ai/continue/{session_id}
+Frontend:
+
+```bash
+cd frontend
+npm run dev
+npm run build
+npm run lint
+npm run test
+```
+
+## High-Level API Surface
+
+Authentication and users:
+- `POST /users/register`
+- `POST /users/login`
+- `POST /users/forgot-password`
+- `GET /users/me`
+- `PUT /users/me`
+- `GET /users/pending-users`
+- `PUT /users/verify/{user_id}`
+
+Classrooms, students, and content:
+- `POST /classrooms/...`
+- `POST /students/...`
+- `POST /content/upload`
+- `GET /content/classroom/{classroom_id}`
+- `GET /content/{content_id}/file`
+
+Sessions and AI:
+- `POST /sessions/...`
+- `GET /ai/teach/{session_id}`
+- `POST /ai/ask/{session_id}`
 
 Voice:
-- POST /voice/ask-voice
+- `POST /voice/ask-voice`
 
-## Frontend Scripts
+## Troubleshooting
 
-From frontend:
+- PowerShell blocks script execution for virtualenv activation:
 
-```bash
-npm run dev       # Start Vite dev server
-npm run build     # Production build
-npm run preview   # Preview built app
-npm run lint      # Lint
-npm run test      # Run tests once
-npm run test:watch
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-## Authentication and Roles
+- Browser still shows old favicon/theme assets:
+	- Hard refresh with `Ctrl + F5`
 
-Roles used in the system:
-- admin
-- teacher
-- classroom
+- Tailwind `@tailwind` or `@apply` warnings in editor:
+	- These are editor CSS-lint false positives and are suppressed in workspace settings
 
-General flow:
-1. User logs in and receives JWT.
-2. Frontend stores token in localStorage.
-3. Axios interceptor attaches Bearer token.
-4. Backend enforces access with role checks.
+- `face_recognition_models` `pkg_resources` deprecation warning:
+	- This project pins `setuptools==80.9.0` to avoid the warning in current dependency versions
 
-## Data and File Storage
+## Security Notes
 
-Backend runtime data:
-- SQLite DB file: backend/ai_tutor.db
-- Uploaded PDFs: backend/uploads/
-- Generated audio: backend/audio/
-- Voice uploads: backend/voice_uploads/
-
-## GitHub Setup (First Push)
-
-From repository root:
-
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/<your-username>/<your-repo>.git
-git push -u origin main
-```
-
-If Windows shows a dubious ownership error:
-
-```bash
-git config --global --add safe.directory "E:/Tom Sibu/TOR AI"
-```
-
-## Recommended Next Improvements
-
-- Keep backend/requirements.txt fully updated and pinned
-- Move JWT secret into environment variables
-- Hash passwords before storing
-- Restrict CORS origins for non-local environments
-- Add backend tests and CI
+Before production deployment:
+- Move JWT secret to environment variable (currently hardcoded in util module)
+- Restrict CORS origins to trusted domains
+- Use a production-grade DB (PostgreSQL/MySQL) instead of SQLite
+- Add rate limiting and audit logging
+- Rotate and protect API keys
 
 ## License
 
-Add your preferred license before public release.
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

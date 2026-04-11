@@ -1,0 +1,63 @@
+# ------------------------------
+# OS / Editor
+# ------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Keep shared workspace settings, ignore everything else in .vscode
+.vscode/*
+!.vscode/settings.json
+
+# ------------------------------
+# Python / Backend
+# ------------------------------
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+backend/.venv/
+backend/venv/
+
+# Env files and local secrets
+.env
+.env.*
+backend/.env
+frontend/.env
+frontend/.env.*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# Local runtime data
+backend/ai_tutor.db
+backend/*.db
+backend/audio/
+backend/uploads/
+backend/voice_uploads/
+backend/student_uploads/
+
+# ------------------------------
+# Node / Frontend
+# ------------------------------
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Playwright / test artifacts
+frontend/playwright-report/
+frontend/test-results/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
