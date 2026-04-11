@@ -10,7 +10,7 @@ from app.models.session_state import SessionState
 from app.models.student import Student
 from app.models.teacher_classroom import TeacherClassroom
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse, UserUpdate
+from app.schemas.user import UserCreate, UserResponse, UserUpdate, UserSelfUpdate
 #from app.utils.security import hash_password
 from app.utils.dependencies import get_current_user, require_role
 
@@ -84,13 +84,48 @@ def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
         "token_type": "bearer"
     }
 
-@router.get("/me")
+@router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "role": current_user.role
-    }
+    return current_user
+
+
+@router.put("/me", response_model=UserResponse)
+def update_me(
+    payload: UserSelfUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in ["admin", "teacher", "classroom"]:
+        raise HTTPException(status_code=403, detail="This role cannot edit its own profile")
+
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if payload.email and payload.email != user.email:
+        duplicate = db.query(User).filter(User.email == payload.email, User.id != user.id).first()
+        if duplicate:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        user.email = payload.email
+
+    if payload.name is not None:
+        if user.role == "classroom":
+            duplicate_classroom = db.query(Classroom).filter(Classroom.name == payload.name, Classroom.user_id != user.id).first()
+            if duplicate_classroom:
+                raise HTTPException(status_code=400, detail="Classroom name already exists")
+
+            classroom = db.query(Classroom).filter(Classroom.user_id == user.id).first()
+            if classroom:
+                classroom.name = payload.name
+
+        user.name = payload.name
+
+    if payload.password is not None:
+        user.password = payload.password
+
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @router.get("/all", response_model=list[UserResponse])

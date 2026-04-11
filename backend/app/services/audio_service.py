@@ -1,8 +1,8 @@
 import os
 import subprocess
-import uuid
 import hashlib
 import unicodedata
+import tempfile
 from pathlib import Path
 
 from gtts import gTTS
@@ -10,10 +10,6 @@ from sqlalchemy.orm import Session
 
 from app.config import PIPER_BIN, PIPER_MODEL_PATH, PIPER_CONFIG_PATH, PIPER_SPEAKER_ID
 from app.models.generated_audio import GeneratedAudio
-
-AUDIO_DIR = "audio"
-os.makedirs(AUDIO_DIR, exist_ok=True)
-
 
 def _to_public_audio_path(file_path: str) -> str:
     """Convert a generated local file path into a static URL path."""
@@ -77,13 +73,13 @@ def text_to_speech(text: str, db: Session | None = None) -> str:
         if existing:
             return _to_db_audio_url(cache_key)
 
-    wav_filename = f"{cache_key}.wav"
-    wav_file_path = os.path.join(AUDIO_DIR, wav_filename)
-
     if not PIPER_MODEL_PATH:
         raise RuntimeError("PIPER_MODEL_PATH is not configured")
 
     payload = (clean_text + "\n").encode("utf-8", errors="replace")
+
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
+        wav_file_path = temp_wav.name
 
     command = [PIPER_BIN, "--model", PIPER_MODEL_PATH, "--output_file", wav_file_path]
 
@@ -118,11 +114,14 @@ def text_to_speech(text: str, db: Session | None = None) -> str:
         return _to_public_audio_path(wav_file_path)
 
     # Fallback for environments where Piper binary/model crashes on Windows.
-    mp3_filename = f"{cache_key}.mp3"
-    mp3_file_path = os.path.join(AUDIO_DIR, mp3_filename)
+    mp3_file_path = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False).name
     try:
         _run_gtts(clean_text, mp3_file_path)
     except Exception as exc:
+        if os.path.exists(wav_file_path):
+            os.remove(wav_file_path)
+        if os.path.exists(mp3_file_path):
+            os.remove(mp3_file_path)
         raise RuntimeError(f"Piper synthesis failed: {error}; gTTS fallback failed: {exc}") from exc
 
     if not os.path.exists(mp3_file_path):

@@ -14,6 +14,42 @@ import { toast } from "sonner";
 import { useState, useRef } from "react";
 import ClassroomAttendancePanel from "@/components/ClassroomAttendancePanel";
 
+const MAX_STUDENT_PHOTO_BYTES = 10 * 1024 * 1024;
+const STUDENT_PHOTO_ACCEPT = ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,image/jpeg,image/png,image/webp,image/gif,image/bmp,image/tiff";
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === "object" && error && "response" in error) {
+    const apiError = error as AxiosError<{ detail?: string }>;
+    return apiError.response?.data?.detail ?? fallback;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+function isSupportedPhotoFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return (
+    file.type === "image/jpeg" ||
+    file.type === "image/png" ||
+    file.type === "image/webp" ||
+    file.type === "image/gif" ||
+    file.type === "image/bmp" ||
+    file.type === "image/tiff" ||
+    name.endsWith(".jpg") ||
+    name.endsWith(".jpeg") ||
+    name.endsWith(".png") ||
+    name.endsWith(".webp") ||
+    name.endsWith(".gif") ||
+    name.endsWith(".bmp") ||
+    name.endsWith(".tif") ||
+    name.endsWith(".tiff")
+  );
+}
+
 interface ClassroomDetails {
   classroom: { id: number; name: string };
   students: StudentResponse[];
@@ -68,6 +104,16 @@ export default function ClassroomDetail() {
 
   const addStudent = useMutation({
     mutationFn: async () => {
+      if (studentForm.photo) {
+        if (!isSupportedPhotoFile(studentForm.photo)) {
+          throw new Error("Only JPEG, PNG, GIF, WEBP, BMP, or TIFF images are allowed");
+        }
+
+        if (studentForm.photo.size > MAX_STUDENT_PHOTO_BYTES) {
+          throw new Error("Student photos must be 10 MB or smaller");
+        }
+      }
+
       const student = await api.post("/students/", {
         name: studentForm.name,
         roll_number: studentForm.roll_number || undefined,
@@ -91,6 +137,9 @@ export default function ClassroomDetail() {
       toast.success("Student added successfully");
       setStudentForm(emptyForm);
       setPhotoPreview(null);
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Unable to add student"));
     },
   });
 
@@ -124,6 +173,22 @@ export default function ClassroomDetail() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!isSupportedPhotoFile(file)) {
+        toast.error("Only JPEG, PNG, GIF, WEBP, BMP, or TIFF images are allowed");
+        e.target.value = "";
+        setStudentForm(prev => ({ ...prev, photo: null }));
+        setPhotoPreview(null);
+        return;
+      }
+
+      if (file.size > MAX_STUDENT_PHOTO_BYTES) {
+        toast.error("Student photos must be 10 MB or smaller");
+        e.target.value = "";
+        setStudentForm(prev => ({ ...prev, photo: null }));
+        setPhotoPreview(null);
+        return;
+      }
+
       setStudentForm(prev => ({ ...prev, photo: file }));
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -215,7 +280,7 @@ export default function ClassroomDetail() {
                     <Input
                       id="photo"
                       type="file"
-                      accept="image/*"
+                      accept={STUDENT_PHOTO_ACCEPT}
                       onChange={handlePhotoChange}
                       ref={fileInputRef}
                       className="hidden"
@@ -232,6 +297,7 @@ export default function ClassroomDetail() {
                   {photoPreview && (
                     <img src={photoPreview} alt="Preview" className="h-32 w-32 rounded-lg object-cover" />
                   )}
+                  <p className="text-xs text-muted-foreground">JPEG, PNG, GIF, WEBP, BMP, or TIFF only, up to 10 MB.</p>
                 </div>
 
                 <Button

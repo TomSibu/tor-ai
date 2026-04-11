@@ -1,5 +1,4 @@
 import os
-import shutil
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
@@ -14,13 +13,16 @@ from app.models.session_state import SessionState
 from app.models.teacher_classroom import TeacherClassroom
 from app.models.user import User
 from app.schemas.content import ContentResponse
-from app.services.pdf_service import extract_text_from_pdf, extract_text_from_pdf_bytes
+from app.services.pdf_service import extract_text_from_pdf_bytes
 from app.utils.dependencies import get_current_user
 
 router = APIRouter()
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+MAX_STUDY_MATERIAL_BYTES = 25 * 1024 * 1024
+
+
+def _is_pdf_file(file_bytes: bytes) -> bool:
+    return file_bytes.startswith(b"%PDF-")
 
 
 def _validate_classroom_access(classroom_id: int, current_user: User, db: Session) -> Classroom:
@@ -85,6 +87,15 @@ def upload_pdf(
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
+    if len(file_bytes) > MAX_STUDY_MATERIAL_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="Study materials must be 25 MB or smaller",
+        )
+
+    if not _is_pdf_file(file_bytes):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed for study materials")
+
     extracted_text = extract_text_from_pdf_bytes(file_bytes)
 
     db_virtual_path = f"db://content/{file.filename}"
@@ -94,7 +105,7 @@ def upload_pdf(
         classroom_id=classroom_id,
         file_path=db_virtual_path,
         file_name=file.filename,
-        file_mime_type=file.content_type or "application/pdf",
+        file_mime_type="application/pdf",
         file_data=file_bytes,
         extracted_text=extracted_text,
     )

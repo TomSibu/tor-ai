@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, BookOpen, GraduationCap,
-  BarChart3, LogOut, Bot, Monitor, Layers
+  BarChart3, LogOut, Bot, Monitor, Layers, UserCircle2
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,7 @@ import {
   SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const adminItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
@@ -35,11 +36,18 @@ const classroomItems = [
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const { state } = useSidebar();
+  const navigate = useNavigate();
   const collapsed = state === "collapsed";
 
   const items = user?.role === "admin" ? adminItems
     : user?.role === "teacher" ? teacherItems
     : classroomItems;
+
+  const profileUrl = user?.role === "admin"
+    ? "/admin/profile"
+    : user?.role === "teacher"
+      ? "/teacher/profile"
+      : "/classroom/profile";
 
   return (
     <Sidebar collapsible="icon">
@@ -72,9 +80,19 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-3">
         {!collapsed && (
-          <div className="mb-2 px-2 text-xs text-sidebar-foreground/60 truncate">
-            {user?.name} · {user?.role}
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate(profileUrl)}
+            className="mb-2 w-full rounded-md px-2 py-2 text-left hover:bg-sidebar-accent/40"
+          >
+            <div className="flex items-center gap-2">
+              <UserCircle2 className="h-4 w-4 text-sidebar-foreground/80" />
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium text-sidebar-foreground">{user?.name || "User"}</div>
+                <div className="text-xs text-sidebar-foreground/60">{user?.role || "-"}</div>
+              </div>
+            </div>
+          </button>
         )}
         <Button
           variant="ghost"

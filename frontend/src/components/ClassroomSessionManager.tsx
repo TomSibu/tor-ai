@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { AxiosError } from "axios";
 import api from "@/lib/api";
 import type { AssignedClassResponse, ContentResponse, SessionManageResponse } from "@/types/api";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,26 @@ import {
 import { ArrowLeft, BookOpen, CalendarDays, Edit3, Loader2, MoreHorizontal, Play, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+
+const MAX_STUDY_MATERIAL_BYTES = 25 * 1024 * 1024;
+const STUDY_MATERIAL_ACCEPT = ".pdf,application/pdf";
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === "object" && error && "response" in error) {
+    const apiError = error as AxiosError<{ detail?: string }>;
+    return apiError.response?.data?.detail ?? fallback;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+function isPdfFile(file: File): boolean {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
 
 interface ClassroomSessionManagerProps {
   classroomId: number;
@@ -84,6 +105,15 @@ export default function ClassroomSessionManager({ classroomId, backPath, scope }
   const uploadMaterial = useMutation({
     mutationFn: async () => {
       if (!file) return;
+
+      if (!isPdfFile(file)) {
+        throw new Error("Only PDF files are allowed for study materials");
+      }
+
+      if (file.size > MAX_STUDY_MATERIAL_BYTES) {
+        throw new Error("Study materials must be 25 MB or smaller");
+      }
+
       const fd = new FormData();
       fd.append("classroom_id", String(classroomId));
       fd.append("file", file);
@@ -94,6 +124,9 @@ export default function ClassroomSessionManager({ classroomId, backPath, scope }
       setFile(null);
       setShowMaterialForm(false);
       qc.invalidateQueries({ queryKey: ["classroom-materials", classroomId, scope] });
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Unable to upload study material"));
     },
   });
 
@@ -216,7 +249,34 @@ export default function ClassroomSessionManager({ classroomId, backPath, scope }
                   <CardContent className="pt-6 space-y-3">
                     <div className="space-y-2">
                       <Label>Upload PDF</Label>
-                      <Input type="file" accept=".pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                      <Input
+                        type="file"
+                        accept={STUDY_MATERIAL_ACCEPT}
+                        onChange={(e) => {
+                          const selectedFile = e.target.files?.[0] || null;
+                          if (!selectedFile) {
+                            setFile(null);
+                            return;
+                          }
+
+                          if (!isPdfFile(selectedFile)) {
+                            toast.error("Only PDF files are allowed for study materials");
+                            e.target.value = "";
+                            setFile(null);
+                            return;
+                          }
+
+                          if (selectedFile.size > MAX_STUDY_MATERIAL_BYTES) {
+                            toast.error("Study materials must be 25 MB or smaller");
+                            e.target.value = "";
+                            setFile(null);
+                            return;
+                          }
+
+                          setFile(selectedFile);
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground">PDF only, up to 25 MB.</p>
                     </div>
                     <Button onClick={() => uploadMaterial.mutate()} disabled={!file || uploadMaterial.isPending}>
                       <Upload className="mr-2 h-4 w-4" /> Upload

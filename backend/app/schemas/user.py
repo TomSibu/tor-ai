@@ -25,6 +25,12 @@ class UserUpdate(BaseModel):
     password: str | None = None
     verified: bool | None = None
 
+
+class UserSelfUpdate(BaseModel):
+    name: str | None = None
+    email: EmailStr | None = None
+    password: str | None = None
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str

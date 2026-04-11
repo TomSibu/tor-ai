@@ -26,6 +26,7 @@ import ClassroomDashboard from "./pages/classroom/ClassroomDashboard";
 import ClassroomSessions from "./pages/classroom/ClassroomSessions";
 import ClassroomAttendance from "./pages/classroom/ClassroomAttendance";
 import ClassroomTeachingDashboard from "./pages/classroom/ClassroomTeachingDashboard";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="/admin/sessions" element={<AdminSessions />} />
               <Route path="/admin/sessions/classroom/:classroomId" element={<AdminClassroomSessions />} />
               <Route path="/admin/analytics" element={<Analytics />} />
+              <Route path="/admin/profile" element={<Profile />} />
             </Route>
 
             {/* Teacher routes */}
@@ -61,6 +63,7 @@ const App = () => (
               <Route path="/teacher/classroom/:classroomId/attendance" element={<TeacherClassroomAttendance />} />
               <Route path="/teacher/sessions" element={<TeacherSessions />} />
               <Route path="/teacher/sessions/classroom/:classroomId" element={<TeacherClassroomSessions />} />
+              <Route path="/teacher/profile" element={<Profile />} />
             </Route>
 
             {/* Classroom routes */}
@@ -68,7 +71,8 @@ const App = () => (
               <Route path="/classroom/dashboard" element={<ClassroomDashboard />} />
               <Route path="/classroom/sessions" element={<ClassroomSessions />} />
               <Route path="/classroom/attendance" element={<ClassroomAttendance />} />
-                          <Route path="/classroom/teaching/:sessionId" element={<ClassroomTeachingDashboard />} />
+              <Route path="/classroom/teaching/:sessionId" element={<ClassroomTeachingDashboard />} />
+              <Route path="/classroom/profile" element={<Profile />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

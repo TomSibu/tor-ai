@@ -1,8 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Depends
 from sqlalchemy.orm import Session
-import shutil
-import os
-import uuid
 
 from app.db.session import get_db
 from app.services.speech_service import speech_to_text
@@ -16,24 +13,16 @@ from app.routes.ai import validate_user_access
 
 router = APIRouter()
 
-UPLOAD_DIR = "voice_uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
 @router.post("/ask-voice")
 def ask_voice(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Save audio file
-    filename = f"{uuid.uuid4()}.wav"
-    file_path = os.path.join(UPLOAD_DIR, filename)
-
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    audio_bytes = file.file.read()
 
     # Convert speech → text
-    question = speech_to_text(file_path)
+    question = speech_to_text(audio_bytes)
 
     # Get session content (VERY IMPORTANT)
     session_id = 1  # TEMP for now (we'll improve later)

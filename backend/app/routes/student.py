@@ -1,8 +1,8 @@
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
-import os
-import shutil
 
 from app.db.session import get_db
 from app.models.student import Student
@@ -12,8 +12,23 @@ from app.utils.dependencies import require_role
 
 router = APIRouter()
 
-STUDENT_UPLOADS_DIR = "student_uploads"
-os.makedirs(STUDENT_UPLOADS_DIR, exist_ok=True)
+MAX_STUDENT_PHOTO_BYTES = 10 * 1024 * 1024
+
+
+def _detect_image_mime_type(photo_bytes: bytes) -> str | None:
+    if photo_bytes.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if photo_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if photo_bytes.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if photo_bytes.startswith(b"BM"):
+        return "image/bmp"
+    if photo_bytes.startswith(b"RIFF") and len(photo_bytes) >= 12 and photo_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    if photo_bytes.startswith((b"II*\x00", b"MM\x00*")):
+        return "image/tiff"
+    return None
 
 @router.post("/", response_model=StudentResponse)
 def create_student(
@@ -55,12 +70,21 @@ def upload_student_photo(
     if not photo_bytes:
         raise HTTPException(status_code=400, detail="Uploaded photo is empty")
 
-    # Delete old filesystem photo if this student was still on legacy storage.
-    if student.photo_path and os.path.exists(student.photo_path):
-        os.remove(student.photo_path)
+    if len(photo_bytes) > MAX_STUDENT_PHOTO_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="Student photos must be 10 MB or smaller",
+        )
+
+    photo_mime_type = _detect_image_mime_type(photo_bytes)
+    if not photo_mime_type:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPEG, PNG, GIF, WEBP, BMP, or TIFF images are allowed",
+        )
 
     student.photo_filename = file.filename
-    student.photo_mime_type = file.content_type or "image/jpeg"
+    student.photo_mime_type = photo_mime_type
     student.photo_data = photo_bytes
     student.photo_path = f"/students/{student_id}/photo"
     db.commit()
@@ -112,9 +136,6 @@ def delete_student(
         raise HTTPException(status_code=404, detail="Student not found")
     
     # Delete photo if exists
-    if student.photo_path and os.path.exists(student.photo_path):
-        os.remove(student.photo_path)
-
     student.photo_data = None
     student.photo_filename = None
     student.photo_mime_type = None

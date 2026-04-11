@@ -50,7 +50,6 @@ export default function ClassroomDashboard() {
       ? fileUrl
       : `${baseUrl}${fileUrl.startsWith("/") ? "" : "/"}${fileUrl}`;
 
-    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
     void api
       .get(normalizedUrl, { responseType: "blob" })
       .then((response) => {
@@ -58,16 +57,12 @@ export default function ClassroomDashboard() {
         const blob = new Blob([response.data], { type: mimeType });
         const blobUrl = URL.createObjectURL(blob);
 
-        if (popup) {
-          popup.location.href = blobUrl;
-        } else {
-          window.open(blobUrl, "_blank", "noopener,noreferrer");
-        }
+        window.open(blobUrl, "_blank", "noopener,noreferrer");
 
         window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
       })
       .catch(() => {
-        popup?.close();
+        // no-op
       });
   };
 
